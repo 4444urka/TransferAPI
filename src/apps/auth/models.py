@@ -1,6 +1,6 @@
 from django.contrib.auth.models import AbstractBaseUser, Group, Permission
 from django.db import models
-
+from .managers import UserManager
 
 class User(AbstractBaseUser):
     """Кастомная модель пользователя с аутентификацией по phone_number."""
@@ -36,7 +36,11 @@ class User(AbstractBaseUser):
 
     # Указываем, что аутентификация будет происходить по phone_number
     USERNAME_FIELD = 'phone_number'
-    REQUIRED_FIELDS = []  # Дополнительные обязательные поля при создании суперпользователя
+    REQUIRED_FIELDS = []
+
+    # Используем наш кастомный менеджер ( мы наследуемся от AbstractBaseUser,
+    # а значит надо определять заново необходимые медоты, для этого и нужен UserManager())
+    objects = UserManager()
 
 
     def __str__(self):

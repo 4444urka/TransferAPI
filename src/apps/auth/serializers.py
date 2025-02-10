@@ -25,7 +25,7 @@ class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
     def get_token(cls, user):
         token = super().get_token(user)
 
-        # Поля которые будут в токене
-        token['phone_number'] = user.phone_number
+        # Поля, которые будут в токене
+        token['phone_number'] = str(user.phone_number)
 
         return token

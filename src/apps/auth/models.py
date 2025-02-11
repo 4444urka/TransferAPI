@@ -1,15 +1,14 @@
 from django.contrib.auth.models import AbstractBaseUser, Group, Permission
 from django.db import models
+from phonenumber_field.modelfields import PhoneNumberField
+
 from .managers import UserManager
 
 class User(AbstractBaseUser):
     """Кастомная модель пользователя с аутентификацией по phone_number."""
 
-    phone_number = models.CharField(
-        max_length=15,
-        unique=True,
-        help_text="Enter phone number in international format (e.g., +1234567890)"
-    )
+    phone_number = PhoneNumberField(unique=True,
+                                    help_text="Enter phone number in international format (e.g., +1234567890)")
     first_name = models.CharField(max_length=30, blank=True)
     last_name = models.CharField(max_length=30, blank=True)
     is_active = models.BooleanField(default=True)  # Активен ли пользователь

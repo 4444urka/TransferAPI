@@ -39,8 +39,14 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
 
+    # Сервисы
     'apps.auth.apps.AuthConfig',
+    'apps.booking.apps.BookingConfig',
+    'apps.trip.apps.TripConfig',
+    'apps.vehicle.apps.VehicleConfig',
+    'apps.seat.apps.SeatConfig',
 
+    # Библиотеки
     'rest_framework',
     'rest_framework.authtoken',
     'rest_framework_simplejwt',

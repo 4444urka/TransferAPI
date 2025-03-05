@@ -69,6 +69,7 @@ INSTALLED_APPS = [
     'apps.trip.apps.TripConfig',
     'apps.vehicle.apps.VehicleConfig',
     'apps.seat.apps.SeatConfig',
+    'apps.payment.apps.PaymentConfig',
 
     # Библиотеки
     'rest_framework',

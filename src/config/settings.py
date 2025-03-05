@@ -42,6 +42,7 @@ INSTALLED_APPS = [
     'apps.auth.apps.AuthConfig',
     'apps.booking.apps.BookingConfig',
     'apps.trip.apps.TripConfig',
+    'apps.vehicle.apps.VehicleConfig',
 
     'rest_framework',
     'rest_framework.authtoken',

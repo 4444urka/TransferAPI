@@ -43,7 +43,7 @@ class User(AbstractBaseUser):
 
 
     def __str__(self):
-        return self.phone_number
+        return str(self.phone_number)
 
     def has_perm(self, perm, obj=None):
         """Проверка прав доступа (требуется для админ-панели)."""

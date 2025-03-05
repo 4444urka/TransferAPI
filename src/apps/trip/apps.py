@@ -1,7 +1,7 @@
 from django.apps import AppConfig
 
 
-class BookingConfig(AppConfig):
+class TripConfig(AppConfig):
     default_auto_field = 'django.db.models.BigAutoField'
-    name = 'apps.booking'
-    label = 'transfer_booking'
+    name = 'apps.trip'
+    label = 'transfer_trip'

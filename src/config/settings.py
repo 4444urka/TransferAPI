@@ -28,6 +28,30 @@ DEBUG = True
 
 ALLOWED_HOSTS = []
 
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'with_file': {
+            'format': '%(asctime)s [%(levelname)s] %(filename)s:%(lineno)d %(message)s'
+        },
+    },
+    'handlers': {
+        'console': {
+            'level': 'INFO',
+            'class': 'logging.StreamHandler',
+            'formatter': 'with_file',
+        },
+    },
+    'loggers': {
+        'django': {
+            'handlers': ['console'],
+            'level': 'INFO',
+            'propagate': True,
+        },
+    },
+}
+
 
 # Application definition
 
@@ -39,8 +63,15 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
 
+    # Сервисы
     'apps.auth.apps.AuthConfig',
+    'apps.booking.apps.BookingConfig',
+    'apps.trip.apps.TripConfig',
+    'apps.vehicle.apps.VehicleConfig',
+    'apps.seat.apps.SeatConfig',
+    'apps.payment.apps.PaymentConfig',
 
+    # Библиотеки
     'rest_framework',
     'rest_framework.authtoken',
     'rest_framework_simplejwt',

@@ -9,8 +9,8 @@ class User(AbstractBaseUser):
 
     phone_number = PhoneNumberField(unique=True,
                                     help_text="Enter phone number in international format (e.g., +1234567890)")
-    first_name = models.CharField(max_length=30, blank=True)
-    last_name = models.CharField(max_length=30, blank=True)
+    first_name = models.CharField(max_length=30)
+    last_name = models.CharField(max_length=30)
     is_active = models.BooleanField(default=True)  # Активен ли пользователь
     is_staff = models.BooleanField(default=False)  # Является ли администратором
     date_joined = models.DateTimeField(auto_now_add=True)
@@ -43,7 +43,7 @@ class User(AbstractBaseUser):
 
 
     def __str__(self):
-        return self.phone_number
+        return f"{self.phone_number} {self.first_name} {self.last_name}"
 
     def has_perm(self, perm, obj=None):
         """Проверка прав доступа (требуется для админ-панели)."""

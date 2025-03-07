@@ -12,8 +12,8 @@ from apps.vehicle.models import Vehicle
 
 
 class Booking(models.Model):
-    user = models.ForeignKey(User, on_delete=models.DO_NOTHING)
-    trip = models.ForeignKey(Trip, on_delete=models.DO_NOTHING, default=1)
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    trip = models.ForeignKey(Trip, on_delete=models.CASCADE, default=1)
     payment = models.OneToOneField(Payment, on_delete=models.CASCADE, blank=True, null=True)
     booking_datetime = models.DateTimeField(auto_now_add=True)
     is_active = models.BooleanField(default=True)

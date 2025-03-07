@@ -6,7 +6,7 @@ from apps.vehicle.models import Vehicle
 
 class Trip(models.Model):
     origin = models.CharField(max_length=30)
-    vehicle = models.ForeignKey(Vehicle, on_delete=models.DO_NOTHING, default=1)
+    vehicle = models.ForeignKey(Vehicle, on_delete=models.CASCADE, default=1)
     destination = models.CharField(max_length=30)
     date = models.DateField(default=timezone.now)
     departure_time = models.TimeField(default='00:00')

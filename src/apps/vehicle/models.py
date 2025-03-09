@@ -2,6 +2,8 @@ from django.db import models
 from django.core.exceptions import ValidationError
 import re
 
+from django.utils import timezone
+
 VEHICLE_TYPE_CHOICES = [
     ('bus', 'Автобус'),
     ('minibus', 'Микроавтобус'),

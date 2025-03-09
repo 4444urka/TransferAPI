@@ -1,29 +1,51 @@
 from django.contrib import admin
 from django import forms
-from django.core.exceptions import ValidationError
+from .models import Trip
 
-from apps.trip.models import Trip
-
-
-class TripAdminForm(forms.ModelForm):
-    class Meta:
-        model = Trip
-        fields = '__all__'
-
-
+@admin.register(Trip)
 class TripAdmin(admin.ModelAdmin):
-    form = TripAdminForm
-    list_display = ('date', 'departure_time', 'origin', 'destination', 'arrival_time', 'default_ticket_price', 'vehicle')
-    list_filter = ('date', 'origin', 'destination', 'vehicle')
+    list_display = (
+        'origin', 
+        'destination',
+        'formatted_departure',
+        'formatted_arrival',
+        'vehicle',
+        'default_ticket_price'
+    )
+    list_filter = ('vehicle', 'departure_time')
     search_fields = ('origin', 'destination')
+    date_hierarchy = 'departure_time'
+    ordering = ('-departure_time',)
+
+    # Кастомные методы для форматирования времени (нужно для отображения времени в формате UTC) 
+    # - хз надо это или нет, пока пусть будет
+    def formatted_departure(self, obj):
+        return obj.departure_time.strftime('%Y-%m-%d %H:%M')
+    formatted_departure.short_description = 'Departure Time'
+
+    def formatted_arrival(self, obj):
+        return obj.arrival_time.strftime('%Y-%m-%d %H:%M')
+    formatted_arrival.short_description = 'Arrival Time'
+
+    # Настройка формы редактирования
     fieldsets = (
-        (None, {
-            'fields': (('date', 'departure_time', 'arrival_time'),
-                      ('origin', 'destination'),
-                      'default_ticket_price',
-                      'vehicle')
+        ('Основная информация', {
+            'fields': (
+                'origin', 
+                'destination',
+                'vehicle',
+                'departure_time',
+                'arrival_time',
+                'default_ticket_price'
+            ),
+            'description': '<div class="help">Все времена указываются в часовом поясе сервера (UTC+10)</div>'
         }),
     )
 
-
-admin.site.register(Trip, TripAdmin)
+    # Валидация при сохранении
+    def save_model(self, request, obj, form, change):
+        try:
+            obj.full_clean()  # Активируем валидацию модели
+            super().save_model(request, obj, form, change)
+        except forms.ValidationError as e:
+            form.add_error(None, e)  # Показываем ошибки в форме

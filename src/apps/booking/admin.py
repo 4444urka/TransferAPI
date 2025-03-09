@@ -1,90 +1,75 @@
-from decimal import Decimal
-
 from django import forms
 from django.contrib import admin
+from decimal import Decimal
 from django.core.exceptions import ValidationError
-
 from .models import Booking
+from apps.seat.models import Seat
 
 
-class BookingAdminForm(forms.ModelForm):
+class BookingForm(forms.ModelForm):
     class Meta:
         model = Booking
         fields = '__all__'
 
-    def clean(self):
-        cleaned_data = super().clean()
+    def clean_seats(self):
+        """Проверяет места непосредственно в поле формы"""
+        seats = self.cleaned_data.get('seats')
+        trip = self.cleaned_data.get('trip')
 
-        # Проверяем наличие пользователя
-        if not cleaned_data.get('user'):
-            raise forms.ValidationError("Пользователь обязателен")
+        if not seats or not trip:
+            return seats
 
-        seats = cleaned_data.get('seats', [])
         for seat in seats:
-
-            # Проверяем принадлежит ли выбранное место транспортному средству рейса
-            if seat.vehicle != cleaned_data.get('trip').vehicle:
+            # Проверка принадлежности места к транспортному средству рейса
+            if seat.vehicle != trip.vehicle:
                 raise forms.ValidationError(f"Место {seat} не соответствует транспортному средству рейса")
 
-            # Проверяем, не занято ли уже это место в другом бронировании
+            # Проверка, не забронировано ли уже место (и не в текущем бронировании при редактировании)
             if seat.is_booked:
-                # Проверяем, не принадлежит ли это место текущему бронированию
-                if hasattr(self.instance, 'pk') and self.instance.pk:
-                    current_booking_seats = self.instance.seats.all()
-                    if seat not in current_booking_seats:
-                        raise forms.ValidationError(f"Место {seat} уже забронировано")
-                else:
+                instance_id = self.instance.id if self.instance else None
+                if not instance_id or not Booking.objects.filter(id=instance_id, seats=seat).exists():
                     raise forms.ValidationError(f"Место {seat} уже забронировано")
 
-        # Проверка платежа, если он указан
-        payment = cleaned_data.get('payment')
-        if payment is not None:
-            # Рассчитываем total_price на основе выбранных в форме мест
-            seats = cleaned_data.get('seats', [])
-            trip = cleaned_data.get('trip')
-            if trip:
-                total_price = Decimal(0)
-                for seat in seats:
-                    multiplier = Decimal(1.2) if seat.seat_type == "front" else Decimal(1.0)
-                    total_price += round(trip.default_ticket_price * multiplier)
+        return seats
 
-                if payment.amount != total_price:
-                    raise forms.ValidationError(
-                        f"Сумма платежа ({payment.amount}) не соответствует общей стоимости ({total_price})"
-                    )
+    def clean(self):
+        """Проверяет всю форму, включая сумму платежа"""
+        cleaned_data = super().clean()
+        payment = cleaned_data.get('payment')
+        seats = cleaned_data.get('seats')
+        trip = cleaned_data.get('trip')
+
+        # Если нет платежа или отсутствуют необходимые данные, вернуть
+        if not payment or not seats or not trip:
+            return cleaned_data
+
+        # Расчет цены на основе данных формы
+        calculated_total = Decimal(0)
+        if self.instance.pk:  # Для существующих бронирований
+            calculated_total = self.instance.total_price
+        else:  # Для новых бронирований
+            for seat in seats:
+                multiplier = Decimal(1.2) if seat.seat_type == "front" else Decimal(1.0)
+                calculated_total += round(trip.default_ticket_price * multiplier)
+
+        # Сравнение округленных значений во избежание проблем с плавающей точкой
+        if round(payment.amount, 2) != round(calculated_total, 2):
+            self.add_error('payment',
+                f"Сумма платежа ({payment.amount}) не соответствует общей стоимости ({calculated_total})")
 
         return cleaned_data
 
-    def save(self, commit=True):
-        instance = super().save(commit=False)
-
-        # Явно устанавливаем пользователя из формы
-        if 'user' in self.cleaned_data:
-            instance.user = self.cleaned_data['user']
-
-        # Обновляем статус забронированности мест
-        seats = self.cleaned_data.get('seats', [])
-        for seat in seats:
-            seat.is_booked = True
-            seat.save()
-
-        if commit:
-            instance.save()
-            self.save_m2m()
-
-        return instance
-
 
 class BookingAdmin(admin.ModelAdmin):
-    form = BookingAdminForm
+    form = BookingForm
     list_display = ('id', 'user', 'trip', 'booking_datetime', 'total_price', 'payment', 'is_active')
     list_filter = ('is_active', 'booking_datetime')
     search_fields = ('user__phone_number', 'trip__departure_time')
 
     def save_model(self, request, obj, form, change):
-        if not obj.user:
-            raise ValidationError("Booking must have a user")
-        super().save_model(request, obj, form, change)
+        """Переопределяет для гарантии соблюдения валидации формы"""
+        if form.is_valid():
+            super().save_model(request, obj, form, change)
 
 
 admin.site.register(Booking, BookingAdmin)

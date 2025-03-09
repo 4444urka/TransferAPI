@@ -1,6 +1,13 @@
 from django.contrib import admin
 from django import forms
-from .models import Trip
+from .models import Trip, City
+
+@admin.register(City)
+class CityAdmin(admin.ModelAdmin):
+    list_display = ('name',)
+    search_fields = ('name',)
+    ordering = ('name',)
+
 
 @admin.register(Trip)
 class TripAdmin(admin.ModelAdmin):
@@ -12,6 +19,7 @@ class TripAdmin(admin.ModelAdmin):
         'vehicle',
         'default_ticket_price'
     )
+    autocomplete_fields = ['origin', 'destination']
     list_filter = ('vehicle', 'departure_time')
     search_fields = ('origin', 'destination')
     date_hierarchy = 'departure_time'
@@ -21,11 +29,11 @@ class TripAdmin(admin.ModelAdmin):
     # - хз надо это или нет, пока пусть будет
     def formatted_departure(self, obj):
         return obj.departure_time.strftime('%Y-%m-%d %H:%M')
-    formatted_departure.short_description = 'Departure Time'
+    formatted_departure.short_description = 'Дата и время отправления'
 
     def formatted_arrival(self, obj):
         return obj.arrival_time.strftime('%Y-%m-%d %H:%M')
-    formatted_arrival.short_description = 'Arrival Time'
+    formatted_arrival.short_description = 'Дата и время прибытия'
 
     # Настройка формы редактирования
     fieldsets = (

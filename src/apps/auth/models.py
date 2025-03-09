@@ -8,25 +8,25 @@ class User(AbstractBaseUser):
     """Кастомная модель пользователя с аутентификацией по phone_number."""
 
     phone_number = PhoneNumberField(unique=True,
-                                    help_text="Enter phone number in international format (e.g., +1234567890)")
-    first_name = models.CharField(max_length=30)
-    last_name = models.CharField(max_length=30)
-    is_active = models.BooleanField(default=True)  # Активен ли пользователь
-    is_staff = models.BooleanField(default=False)  # Является ли администратором
-    date_joined = models.DateTimeField(auto_now_add=True)
-    is_superuser = models.BooleanField(default=False)
+                                    help_text="Введите номер телефона в международном формате (к примеру: +1234567890)")
+    first_name = models.CharField(max_length=30, verbose_name="Имя")
+    last_name = models.CharField(max_length=30, verbose_name="Фамилия")
+    is_active = models.BooleanField(default=True, verbose_name="Активен")  # Активен ли пользователь
+    is_staff = models.BooleanField(default=False, verbose_name="Является администратором")  # Является ли администратором
+    date_joined = models.DateTimeField(auto_now_add=True, verbose_name="Дата и время регистрации")
+    is_superuser = models.BooleanField(default=False, verbose_name="Является 'суперпользователем'")
 
     # Добавляем группы и разрешения
     groups = models.ManyToManyField(
         Group,
-        verbose_name='groups',
+        verbose_name='Группы',
         blank=True,
         related_name="customuser_set",
         related_query_name="customuser"
     )
     user_permissions = models.ManyToManyField(
         Permission,
-        verbose_name='user permissions',
+        verbose_name='Разрешения пользователя',
         blank=True,
         related_name="customuser_set",
         related_query_name="customuser"

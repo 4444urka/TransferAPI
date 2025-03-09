@@ -5,3 +5,4 @@ class PaymentConfig(AppConfig):
     default_auto_field = 'django.db.models.BigAutoField'
     name = 'apps.payment'
     label = 'transfer_payment'
+    verbose_name = "Оплата"

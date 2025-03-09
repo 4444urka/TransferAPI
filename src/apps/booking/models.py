@@ -13,13 +13,38 @@ from apps.vehicle.models import Vehicle
 
 
 class Booking(models.Model):
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
-    trip = models.ForeignKey(Trip, on_delete=models.CASCADE, default=1)
-    payment = models.OneToOneField(Payment, on_delete=models.CASCADE, blank=True, null=True)
-    booking_datetime = models.DateTimeField(auto_now_add=True)
-    is_active = models.BooleanField(default=True)
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        verbose_name="Пользователь"
+        )
+    trip = models.ForeignKey(
+        Trip,
+        on_delete=models.CASCADE,
+        default=1,
+        verbose_name="Поездка"
+        )
+    payment = models.OneToOneField(
+        Payment,
+        on_delete=models.CASCADE,
+        blank=True,
+        null=True,
+        verbose_name="Данные об оплате"
+        )
+    booking_datetime = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name="Дата и время бронирования"
+        )
+    is_active = models.BooleanField(
+        default=True,
+        verbose_name="Бронирование актуально"
+        )
 
-    seats = models.ManyToManyField(Seat, blank=True)
+    seats = models.ManyToManyField(
+        Seat,
+        blank=True,
+        verbose_name="Место"
+        )
 
     @property
     def total_price(self):
@@ -39,6 +64,11 @@ class Booking(models.Model):
         if not self.pk:
             return f"New booking - {self.trip}" if self.trip else "New booking"
         return f"{self.booking_datetime} - {self.user} - {self.trip} - {self.total_price}"
+
+    class Meta:
+        verbose_name = "Бронирование"
+        verbose_name_plural = "Бронирования"
+        ordering = ['booking_datetime', 'is_active']
 
     def clean(self):
         """Валидация модели бронирования"""

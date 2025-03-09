@@ -5,6 +5,7 @@ class SeatConfig(AppConfig):
     default_auto_field = 'django.db.models.BigAutoField'
     name = 'apps.seat'
     label = 'transfer_seat'
+    verbose_name = "Места"
 
     def ready(self):
         import apps.seat.signals

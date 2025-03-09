@@ -1,3 +1,9 @@
 .idea
 *.env
-*migrations
+*.pyc
+# Ignore all files in migrations directories
+**/migrations/*.py
+**/migrations/*.pyc
+
+# But keep the __init__.py files
+!**/migrations/__init__.py

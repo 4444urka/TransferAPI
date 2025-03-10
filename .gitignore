@@ -1,6 +1,7 @@
 .idea
 *.env
 *.pyc
+.vscode
 # Ignore all files in migrations directories
 **/migrations/*.py
 **/migrations/*.pyc

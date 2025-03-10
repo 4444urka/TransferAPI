@@ -60,5 +60,15 @@ class Seat(models.Model):
         self.full_clean()
         super().save(*args, **kwargs)
 
+    def delete(self, *args, **kwargs):
+        """
+        Запрещает удаление отдельных мест. 
+        Удаление возможно только через удаление транспортного средства.
+        """
+        raise ValidationError(
+            "Удаление мест запрещено. Удалите транспортное средство для удаления всех мест."
+        )
+
+
     def __str__(self):
         return f"{self.vehicle} - Место {self.seat_number} ({self.get_seat_type_display()})"

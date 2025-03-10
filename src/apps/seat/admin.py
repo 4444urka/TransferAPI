@@ -45,5 +45,7 @@ class SeatAdmin(admin.ModelAdmin):
     booking_status.short_description = "Статус"
     booking_status.admin_order_field = 'is_booked'
 
+    def has_delete_permission(self, request, obj=None):
+        return False  # Запрещает удаление через админку
 
 admin.site.register(Seat, SeatAdmin)

@@ -5,7 +5,6 @@
 * Django Rest Framework
 * PostgeSQL
 * Docker
-* Redis
 
 
 ## Code Style
@@ -21,6 +20,7 @@
 ## Команды
 Для того, чтобы сгенерировать миграции необходимо ввести команду ` docker compose exec web src/manage.py makemigrations`
 Для того, чтобы применить миграции необходимо ввести команду ` docker compose exec web src/manage.py migrate`
+Для запуска тестов в докере: `docker compose exec web src/manage.py test`
 
 ## Информация по работе с GIT
 

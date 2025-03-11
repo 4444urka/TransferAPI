@@ -1,0 +1,1 @@
+street_validate_regex = r'^(?:Ул\.\s+)?.+,\s+д\.\s+\d+$'

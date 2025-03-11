@@ -1,7 +1,6 @@
 from decimal import Decimal
 from django.db import models
 from django.core.exceptions import ValidationError
-from django.utils import timezone
 from django.db.models.signals import m2m_changed
 from django.dispatch import receiver
 
@@ -10,6 +9,7 @@ from apps.payment.models import Payment
 from apps.seat.models import Seat
 from apps.trip.models import Trip
 from apps.vehicle.models import Vehicle
+from utils.is_location_exists import is_location_exists
 
 
 class Booking(models.Model):
@@ -23,6 +23,18 @@ class Booking(models.Model):
         on_delete=models.CASCADE,
         default=1,
         verbose_name="Поездка"
+        )
+    pickup_location = models.CharField(
+        max_length=100,
+        verbose_name="Место посадки",
+        help_text="Введите улицу и номер дома в формате 'ул. Название, 1'",
+        default="",
+        )
+    dropoff_location = models.CharField(
+        max_length=100,
+        verbose_name="Место высадки",
+        help_text="Введите улицу и номер дома в формате 'ул. Название, 1'",
+        default=""
         )
     payment = models.OneToOneField(
         Payment,
@@ -72,12 +84,22 @@ class Booking(models.Model):
 
     def clean(self):
         """Валидация модели бронирования"""
+
         # Проверяем наличие пользователя
         if not self.user:
             raise ValidationError("Пользователь обязателен")
 
         if not self.trip:
             return  # Пропускаем проверки, если рейс не указан
+
+        # Проверяем существует ли адрес на котором нужно забрать пассажира
+        if not is_location_exists(self.pickup_location, self.trip.origin.name):
+            raise ValidationError(f"Локации {self.pickup_location} не существует в городе {self.trip.origin.name}")
+
+        # Проверяем существует ли адрес на котором нужно высадить пассажира
+        if not is_location_exists(self.dropoff_location, self.trip.destination.name):
+            raise ValidationError(
+                f"Локации {self.dropoff_location} не существует в городе {self.trip.destination.name}")
 
         # Вместо пропуска валидации для новых экземпляров, проводим проверку напрямую
         if hasattr(self, '_seats_to_validate'):

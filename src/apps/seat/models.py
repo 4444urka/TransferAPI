@@ -56,10 +56,29 @@ class Seat(models.Model):
         #         'seat_type': 'Только первое место может быть переднего типа'
         #     })
 
-    def save(self, *args, **kwargs):
-        self.full_clean()
-        super().save(*args, **kwargs)
+    def clean(self):
+        super().clean()
+        
+        # Проверка при изменении существующего объекта
 
+        # Вообще до этой проверки дойти не должно, потому что введен запрет  
+        # на удаление мест, но на всякий склучай пусть будет прописано явно
+        
+        if self.pk:
+            original = Seat.objects.get(pk=self.pk)
+            if original.seat_number != self.seat_number:
+                raise ValidationError({
+                    'seat_number': 'Редактирование номера места запрещено'
+                })
+            if original.vehicle != self.vehicle:
+                raise ValidationError({
+                    'vehicle': 'Изменение транспортного средства запрещено'
+                })
+            
+    def save(self, *args, **kwargs):
+        self.full_clean() 
+        super().save(*args, **kwargs)
+    
     def delete(self, *args, **kwargs):
         """
         Запрещает удаление отдельных мест. 

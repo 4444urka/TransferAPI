@@ -18,6 +18,7 @@ django-filter = "^25.1"
 drf-yasg = "^1.21.9"
 django-redis = "^5.4.0"
 hiredis = "^3.1.0"
+requests = "^2.32.3"
 
 [build-system]
 requires = ["poetry-core"]

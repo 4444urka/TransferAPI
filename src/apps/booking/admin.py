@@ -62,7 +62,7 @@ class BookingForm(forms.ModelForm):
 
 class BookingAdmin(admin.ModelAdmin):
     form = BookingForm
-    list_display = ('id', 'user', 'trip', 'booking_datetime', 'total_price', 'payment', 'is_active')
+    list_display = ('id', 'user', 'trip', 'pickup_location', 'dropoff_location', 'booking_datetime', 'total_price', 'payment', 'is_active')
     list_filter = ('is_active', 'booking_datetime')
     search_fields = ('user__phone_number', 'trip__departure_time')
 

@@ -11,7 +11,8 @@ from apps.payment.serializers import PaymentSerializer
 class BookingSerializer(serializers.ModelSerializer):
     class Meta:
         model = Booking
-        fields = ['id', 'user', 'trip', 'booking_datetime', 'is_active', 'total_price']
+        fields = ['id', 'user', 'trip', 'booking_datetime', 'is_active', 'total_price',
+                  'pickup_location', 'dropoff_location']
         read_only_fields = ['booking_datetime', 'user', 'total_price']
 
 
@@ -24,7 +25,7 @@ class BookingDetailSerializer(serializers.ModelSerializer):
     class Meta:
         model = Booking
         fields = ['id', 'user', 'trip', 'payment', 'booking_datetime',
-                  'is_active', 'seats', 'total_price']
+                  'is_active', 'seats', 'total_price', 'pickup_location', 'dropoff_location']
         read_only_fields = ['booking_datetime', 'user', 'total_price']
 
     def create(self, validated_data):

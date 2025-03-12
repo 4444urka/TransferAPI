@@ -53,8 +53,8 @@ class TripViewSetTest(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         
         # Проверяем, что все будущие поездки включены в список
-        self.assertEqual(len(response.data), 2)
-        self.assertEqual(response.data[0]['id'], self.trip.id)
+        self.assertEqual(len(response.data['results']), 2)
+        self.assertEqual(response.data['results'][0]['id'], self.trip.id)
 
     def test_trip_detail(self):
         """Тест получения детальной информации о поездке"""
@@ -76,32 +76,32 @@ class TripViewSetTest(APITestCase):
         # Фильтр по городу отправления
         response = self.client.get(f"{self.trip_list_url}?origin={self.origin.id}")
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data), 2)
+        self.assertEqual(len(response.data['results']), 2)
 
         # Фильтр по городу назначения
         response = self.client.get(f"{self.trip_list_url}?destination={self.destination.id}")
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data), 2)
+        self.assertEqual(len(response.data['results']), 2)
 
         # Фильтр по несуществующему маршруту
         response = self.client.get(
             f"{self.trip_list_url}?origin={self.origin.id}&destination={self.another_city.id}"
         )
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data), 0)
+        self.assertEqual(len(response.data['results']), 0)
 
     def test_filter_by_date(self):
         """Тест фильтрации поездок по дате"""
         tomorrow = (timezone.now() + timedelta(days=1)).strftime('%Y-%m-%d')
         response = self.client.get(f"{self.trip_list_url}?date={tomorrow}")
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data), 1)
+        self.assertEqual(len(response.data['results']), 1)
 
         # Проверка фильтрации по будущей дате
         day_after_tomorrow = (timezone.now() + timedelta(days=2)).strftime('%Y-%m-%d')
         response = self.client.get(f"{self.trip_list_url}?date={day_after_tomorrow}")
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data), 1)
+        self.assertEqual(len(response.data['results']), 1)
 
     def test_available_seats_calculation(self):
         """Тест расчета доступных мест"""
@@ -120,3 +120,36 @@ class TripViewSetTest(APITestCase):
         response = self.client.get(self.trip_detail_url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data['duration'], "2ч 0мин")
+
+
+class TripPaginationTest(APITestCase):
+    def setUp(self):
+        # Создаем город и транспортное средство
+        self.city = City.objects.create(name="Test City")
+        self.vehicle = Vehicle.objects.create(
+            vehicle_type="bus",
+            license_plate="Т123ТТ",
+            total_seats=40
+        )
+        # Создаем 30 поездок
+        for i in range(30):
+            Trip.objects.create(
+                vehicle=self.vehicle,
+                origin=self.city,
+                destination=self.city,
+                departure_time=timezone.now() + timedelta(days=1+i),
+                arrival_time=timezone.now() + timedelta(days=1+i, hours=2),
+                default_ticket_price=100.00
+            )
+        self.trips_url = reverse("trip-list") 
+
+    def test_trip_pagination(self):
+        response = self.client.get(self.trips_url)
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        # Проверяем, что на странице максимум 20 записей
+        self.assertLessEqual(len(data.get("results", [])), 20)
+        # Проверяем наличие ключей пагинации
+        self.assertIn("count", data)
+        self.assertIn("next", data)
+        self.assertIn("previous", data)

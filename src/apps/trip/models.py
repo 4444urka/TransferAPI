@@ -12,6 +12,7 @@ class City(models.Model):
         verbose_name = "Город"
         verbose_name_plural = "Города"
         ordering = ['name']
+        app_label = 'transfer_trip'
 
     def __str__(self):
         return self.name
@@ -52,6 +53,7 @@ class Trip(models.Model):
         verbose_name = "Поездка"
         verbose_name_plural = "Поездки"
         ordering = ['departure_time', 'arrival_time']
+        app_label = 'transfer_trip'
 
     def __str__(self):
         return f"{self.departure_time.strftime('%Y-%m-%d %H:%M')}: {self.origin} - {self.destination}"
@@ -61,13 +63,13 @@ class Trip(models.Model):
         # Проверка времени отправления
         if self.departure_time < timezone.now():
             raise ValidationError({
-                'Дата и время отправления': 'Нельзя создавать поездки с прошедшей датой отправления'
+                'departure_time': 'Нельзя создавать поездки с прошедшей датой отправления'
             })
 
         # Проверка времени прибытия
         if self.arrival_time <= self.departure_time:
             raise ValidationError({
-                'Дата и время прибытия': 'Время прибытия должно быть позже отправления'
+                'arrival_time': 'Время прибытия должно быть позже отправления'
             })
 
         # Проверка пересечения временных интервалов
@@ -79,13 +81,13 @@ class Trip(models.Model):
 
         if conflicts.exists():
             raise ValidationError({
-                'Транспорт': f'Транспорт занят с {conflicts[0].departure_time} до {conflicts[0].arrival_time}'
+                'vehicle': f'Транспорт занят с {conflicts[0].departure_time} до {conflicts[0].arrival_time}'
             })
 
         # Проверка цены
         if self.default_ticket_price < 0:
             raise ValidationError({
-                'Цена билета': 'Цена не может быть отрицательной'
+                'default_ticket_price': 'Цена не может быть отрицательной'
             })
 
     def save(self, *args, **kwargs):

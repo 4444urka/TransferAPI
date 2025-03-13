@@ -29,6 +29,7 @@ router.register(r'seats', SeatViewSet, basename='seat')
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('auth/', include('apps.auth.urls')),
+    path('api/trips/', include('apps.trip.urls')),
     path('api/', include(router.urls)),
 
     # URL для Swagger UI

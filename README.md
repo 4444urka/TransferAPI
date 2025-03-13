@@ -5,6 +5,8 @@
 * Django Rest Framework
 * PostgeSQL
 * Docker
+* Redis
+* RabbitMQ
 
 
 ## Code Style

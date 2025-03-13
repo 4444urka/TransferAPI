@@ -16,6 +16,9 @@ django-phonenumber-field = {extras = ["phonenumbers"], version = "^8.0.0"}
 logging = "^0.4.9.6"
 django-filter = "^25.1"
 drf-yasg = "^1.21.9"
+django-redis = "^5.4.0"
+hiredis = "^3.1.0"
+requests = "^2.32.3"
 
 [build-system]
 requires = ["poetry-core"]

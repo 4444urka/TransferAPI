@@ -1,7 +1,7 @@
+import re
 from decimal import Decimal
 from django.db import models
 from django.core.exceptions import ValidationError
-from django.utils import timezone
 from django.db.models.signals import m2m_changed
 from django.dispatch import receiver
 
@@ -10,6 +10,8 @@ from apps.payment.models import Payment
 from apps.seat.models import Seat
 from apps.trip.models import Trip
 from apps.vehicle.models import Vehicle
+from utils.find_street_by_name import find_street_by_name
+from utils.street_validate_regex import street_validate_regex
 
 
 class Booking(models.Model):
@@ -23,6 +25,18 @@ class Booking(models.Model):
         on_delete=models.CASCADE,
         default=1,
         verbose_name="Поездка"
+        )
+    pickup_location = models.CharField(
+        max_length=100,
+        verbose_name="Место посадки",
+        help_text="Введите улицу и номер дома в формате 'ул. Название, 1'",
+        default="",
+        )
+    dropoff_location = models.CharField(
+        max_length=100,
+        verbose_name="Место высадки",
+        help_text="Введите улицу и номер дома в формате 'ул. Название, 1'",
+        default=""
         )
     payment = models.OneToOneField(
         Payment,
@@ -72,12 +86,41 @@ class Booking(models.Model):
 
     def clean(self):
         """Валидация модели бронирования"""
+
         # Проверяем наличие пользователя
         if not self.user:
             raise ValidationError("Пользователь обязателен")
 
         if not self.trip:
             return  # Пропускаем проверки, если рейс не указан
+
+        # Проверка pickup_location только если оно указано
+        if self.pickup_location and self.pickup_location.strip():
+            # Проверяем, соответствует ли адрес уже нашему формату
+            if not re.match(street_validate_regex, self.pickup_location):
+                try:
+                    refactored_pickup_location = find_street_by_name(self.pickup_location, self.trip.origin.name)
+                    if refactored_pickup_location:
+                        self.pickup_location = refactored_pickup_location
+                    else:
+                        raise ValidationError(
+                            f"Не найдена локация '{self.pickup_location}' в городе {self.trip.origin.name}")
+                except Exception as e:
+                    raise ValidationError(f"Ошибка проверки локации получения: {str(e)}")
+
+        # То же самое для dropoff_location
+        if self.dropoff_location and self.dropoff_location.strip():
+            # Проверяем, соответствует ли адрес уже нашему формату
+            if not re.match(street_validate_regex, self.dropoff_location):
+                try:
+                    refactored_dropoff_location = find_street_by_name(self.dropoff_location, self.trip.destination.name)
+                    if refactored_dropoff_location:
+                        self.dropoff_location = refactored_dropoff_location
+                    else:
+                        raise ValidationError(
+                            f"Не найдена локация '{self.dropoff_location}' в городе {self.trip.destination.name}")
+                except Exception as e:
+                    raise ValidationError(f"Ошибка проверки локации высадки: {str(e)}")
 
         # Вместо пропуска валидации для новых экземпляров, проводим проверку напрямую
         if hasattr(self, '_seats_to_validate'):

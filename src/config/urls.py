@@ -7,20 +7,7 @@ from rest_framework import permissions
 
 from apps.booking.views import BookingViewSet
 from apps.seat.views import SeatViewSet
-
-# Настройка Swagger UI
-schema_view = get_schema_view(
-    openapi.Info(
-        title="Transfer API",
-        default_version='v1',
-        description="API для сервиса трансферов Armada",
-        terms_of_service="https://www.google.com/policies/terms/",
-        contact=openapi.Contact(email="psinka2006@gmail.com"),
-        license=openapi.License(name="BSD License"),
-    ),
-    public=True,
-    permission_classes=[permissions.AllowAny],
-)
+from config.openapi import schema_view
 
 router = DefaultRouter()
 router.register(r'bookings', BookingViewSet, basename='booking')

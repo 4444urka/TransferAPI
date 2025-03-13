@@ -8,42 +8,41 @@ from apps.seat.models import Seat
 from apps.seat.serializers import SeatSerializer
 from apps.vehicle.models import Vehicle
 
+from drf_yasg.utils import swagger_auto_schema
+from drf_yasg import openapi
+
 
 class SeatViewSet(mixins.ListModelMixin,
                   mixins.RetrieveModelMixin,
                   mixins.UpdateModelMixin,
                   viewsets.GenericViewSet):
-    """
-    ViewSet для модели Seat.
+    """ViewSet для модели Seat."""
 
-    Доступные действия:
-    - list (GET): получение списка мест.
-    - retrieve (GET): получение деталей конкретного места.
-    - update / partial_update (PUT/PATCH): редактирование мест.
-    - getSeatsByVehicle (GET): получение списка мест по ID транспортного средства.
+    @swagger_auto_schema(
+        operation_description="Получение списка всех мест",
+        operation_summary="Список всех мест",
+        tags=["Места"]
+    )
+    def list(self, request, *args, **kwargs):
+        return super().list(request, *args, **kwargs)
 
-    Создание (POST) и удаление (DELETE) отключены, так как:
-    - Места создаются автоматически при создании транспортного средства (через сигналы).
-    - Удаление мест разрешается только через удаление транспортного средства.
-    """
-    queryset = Seat.objects.all()
-    serializer_class = SeatSerializer
+    @swagger_auto_schema(
+        operation_description="Получение информации о конкретном месте",
+        operation_summary="Детали места",
+        tags=["Места"]
+    )
+    def retrieve(self, request, *args, **kwargs):
+        return super().retrieve(request, *args, **kwargs)
 
-    # Переопределяем методы, чтобы все же получать понятные ответы даже при ручном вызове
-    def create(self, request, *args, **kwargs):
-        # Запрещаем создание мест через API
-        return Response(
-            {"detail": "Создание мест через API запрещено"},
-            status=status.HTTP_405_METHOD_NOT_ALLOWED
-        )
-
-    def destroy(self, request, *args, **kwargs):
-        # Запрещаем удаление мест через API
-        return Response(
-            {"detail": "Удаление мест через API запрещено"},
-            status=status.HTTP_405_METHOD_NOT_ALLOWED
-        )
-
+    @swagger_auto_schema(
+        operation_description="Получение списка мест для конкретного транспортного средства",
+        operation_summary="Места транспортного средства",
+        manual_parameters=[
+            openapi.Parameter('vehicle_id', openapi.IN_PATH, description="ID транспортного средства",
+                              type=openapi.TYPE_INTEGER)
+        ],
+        tags=["Места"]
+    )
     @action(detail=False, methods=['get'], url_path='by_vehicle/(?P<vehicle_id>[^/.]+)')
     def get_seats_by_vehicle(self, request, vehicle_id=None):
         """Получение списка мест для конкретного транспортного средства с кэшированием"""

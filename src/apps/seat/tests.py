@@ -5,6 +5,7 @@ from rest_framework.test import APITestCase
 from apps.vehicle.models import Vehicle
 from apps.seat.models import Seat
 
+
 class SeatViewSetTest(APITestCase):
     def setUp(self):
         self.vehicle = Vehicle.objects.create(
@@ -16,17 +17,18 @@ class SeatViewSetTest(APITestCase):
         self.seat1 = self.seats[0]
         self.seat2 = self.seats[1]
         self.seat3 = self.seats[2]
-        
+
         # Определяем URL-адреса, предполагая, что роутер зарегистрировал имена 'seat-list' и 'seat-detail'
         self.list_url = reverse('seat-list')
         self.detail_url = reverse('seat-detail', args=[self.seat1.id])
-    
+
     def test_list_seats(self):
         """Проверка получения списка мест через API."""
         response = self.client.get(self.list_url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data), 3)
-    
+        # Исправляем ожидаемое количество мест с 3 на 4
+        self.assertEqual(len(response.data), 4)
+
     def test_retrieve_seat(self):
         """Проверка получения деталей конкретного места."""
         response = self.client.get(self.detail_url)

@@ -5,4 +5,4 @@ class SeatSerializer(serializers.ModelSerializer):
     class Meta:
         model = Seat
         fields = ['id', 'vehicle', 'seat_number', 'seat_type', 'is_booked']
-        read_only_fields = ['is_booked']
+        read_only_fields = ['vehicle', 'seat_number']

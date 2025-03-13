@@ -4,6 +4,7 @@ from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APITestCase
 from datetime import timedelta
+from unittest.mock import patch
 
 from apps.booking.models import Booking
 from apps.seat.models import Seat
@@ -15,6 +16,12 @@ User = get_user_model()
 
 class BookingViewSetTest(APITestCase):
     def setUp(self):
+        # Мокаем функцию find_street_by_name
+        self.street_patcher = patch('apps.booking.models.find_street_by_name')
+        self.mock_find_street = self.street_patcher.start()
+        # Настраиваем мок для возврата того же адреса, что был передан
+        self.mock_find_street.side_effect = lambda street, city: street
+
         # Создание пользователей
         self.admin_user = User.objects.create_superuser('+79111111111', 'adminpass')
         self.regular_user1 = User.objects.create_user('+79111111112', 'user1pass')
@@ -55,6 +62,8 @@ class BookingViewSetTest(APITestCase):
         self.booking1 = Booking.objects.create(
             user=self.regular_user1,
             trip=self.trip,
+            pickup_location="ул. Первая, 1",
+            dropoff_location="ул. Вторая, 2",
             is_active=True
         )
         self.booking1.seats.add(self.seat1)
@@ -62,6 +71,8 @@ class BookingViewSetTest(APITestCase):
         self.booking2 = Booking.objects.create(
             user=self.regular_user2,
             trip=self.trip,
+            pickup_location="ул. Третья, 3",
+            dropoff_location="ул. Четвертая, 4",
             is_active=True
         )
         self.booking2.seats.add(self.seat2)
@@ -69,6 +80,8 @@ class BookingViewSetTest(APITestCase):
         self.inactive_booking = Booking.objects.create(
             user=self.regular_user1,
             trip=self.trip,
+            pickup_location="ул. Пятая, 5",
+            dropoff_location="ул. Шестая, 6",
             is_active=False
         )
 
@@ -78,6 +91,11 @@ class BookingViewSetTest(APITestCase):
         self.booking2_detail_url = reverse('booking-detail', args=[self.booking2.id])
         self.booking1_cancel_url = reverse('booking-cancel', args=[self.booking1.id])
         self.inactive_booking_cancel_url = reverse('booking-cancel', args=[self.inactive_booking.id])
+
+    def tearDown(self):
+        # Останавливаем патчер
+        self.street_patcher.stop()
+        super().tearDown()
 
     def test_authentication_required(self):
         """Неаутентифицированные пользователи не могут получить доступ к бронированиям"""
@@ -141,7 +159,9 @@ class BookingViewSetTest(APITestCase):
 
         data = {
             'trip_id': self.trip.id,  # Используем trip_id на основе сериализатора
-            'seats_ids': [self.seat3.id]  # Используем seats_ids на основе сериализатора
+            'seats_ids': [self.seat3.id],  # Используем seats_ids на основе сериализатора
+            'pickup_location': 'ул. Седьмая, 7',
+            'dropoff_location': 'ул. Восьмая, 8'
         }
 
         response = self.client.post(self.booking_list_url, data, format='json')

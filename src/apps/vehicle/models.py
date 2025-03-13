@@ -100,6 +100,12 @@ class Vehicle(models.Model):
         # Дополнительные проверки для премиум автомобилей
         if self.vehicle_type == 'premium_car' and not self.is_comfort:
             raise ValidationError('Премиум автомобиль должен иметь повышенный уровень комфорта')
+        
+        # Запрет на изменнение количества мест в машине
+        if self.pk:
+            original = Vehicle.objects.get(pk=self.pk)
+            if original.total_seats != self.total_seats:
+                raise ValidationError("Изменение количества мест запрещено")
 
     def save(self, *args, **kwargs):
         self.clean()

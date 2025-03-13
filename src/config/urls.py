@@ -6,6 +6,7 @@ from drf_yasg import openapi
 from rest_framework import permissions
 
 from apps.booking.views import BookingViewSet
+from apps.seat.views import SeatViewSet
 
 # Настройка Swagger UI
 schema_view = get_schema_view(
@@ -23,6 +24,7 @@ schema_view = get_schema_view(
 
 router = DefaultRouter()
 router.register(r'bookings', BookingViewSet, basename='booking')
+router.register(r'seats', SeatViewSet, basename='seat')
 
 urlpatterns = [
     path('admin/', admin.site.urls),

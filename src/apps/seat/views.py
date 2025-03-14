@@ -1,22 +1,34 @@
-# apps/seat/views.py
-
 from rest_framework import mixins, viewsets, status
 from rest_framework.response import Response
 from rest_framework.decorators import action
 from django.core.cache import cache
+from drf_yasg.utils import swagger_auto_schema
+from drf_yasg import openapi
+
 from apps.seat.models import Seat
 from apps.seat.serializers import SeatSerializer
 from apps.vehicle.models import Vehicle
-
-from drf_yasg.utils import swagger_auto_schema
-from drf_yasg import openapi
 
 
 class SeatViewSet(mixins.ListModelMixin,
                   mixins.RetrieveModelMixin,
                   mixins.UpdateModelMixin,
                   viewsets.GenericViewSet):
-    """ViewSet для модели Seat."""
+    """
+    ViewSet для модели Seat.
+
+    Доступные действия:
+    - list (GET): получение списка мест.
+    - retrieve (GET): получение деталей конкретного места.
+    - update / partial_update (PUT/PATCH): редактирование мест.
+    - getSeatsByVehicle (GET): получение списка мест по ID транспортного средства.
+
+    Создание (POST) и удаление (DELETE) отключены, так как:
+    - Места создаются автоматически при создании транспортного средства (через сигналы).
+    - Удаление мест разрешается только через удаление транспортного средства.
+    """
+    queryset = Seat.objects.all()  # Восстановленная строка с атрибутом queryset
+    serializer_class = SeatSerializer
 
     @swagger_auto_schema(
         operation_description="Получение списка всех мест",
@@ -35,6 +47,61 @@ class SeatViewSet(mixins.ListModelMixin,
         return super().retrieve(request, *args, **kwargs)
 
     @swagger_auto_schema(
+        operation_description="Полное обновление информации о месте (только разрешенные поля)",
+        operation_summary="Обновление места",
+        tags=["Места"],
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            properties={
+                'is_booked': openapi.Schema(type=openapi.TYPE_BOOLEAN, description='Статус бронирования места'),
+                'seat_type': openapi.Schema(type=openapi.TYPE_STRING, description='Тип места (front, middle, back)')
+            }
+        )
+    )
+    def update(self, request, *args, **kwargs):
+        return super().update(request, *args, **kwargs)
+
+    @swagger_auto_schema(
+        operation_description="Частичное обновление информации о месте (только разрешенные поля)",
+        operation_summary="Частичное обновление места",
+        tags=["Места"],
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            properties={
+                'is_booked': openapi.Schema(type=openapi.TYPE_BOOLEAN, description='Статус бронирования места'),
+                'seat_type': openapi.Schema(type=openapi.TYPE_STRING, description='Тип места (front, middle, back)')
+            }
+        )
+    )
+    def partial_update(self, request, *args, **kwargs):
+        return super().partial_update(request, *args, **kwargs)
+
+    # Переопределяем методы, чтобы все же получать понятные ответы даже при ручном вызове
+    @swagger_auto_schema(
+        operation_description="Создание нового места (запрещено)",
+        operation_summary="Создание места",
+        tags=["Места"]
+    )
+    def create(self, request, *args, **kwargs):
+        # Запрещаем создание мест через API
+        return Response(
+            {"detail": "Создание мест через API запрещено"},
+            status=status.HTTP_405_METHOD_NOT_ALLOWED
+        )
+
+    @swagger_auto_schema(
+        operation_description="Удаление места (запрещено)",
+        operation_summary="Удаление места",
+        tags=["Места"]
+    )
+    def destroy(self, request, *args, **kwargs):
+        # Запрещаем удаление мест через API
+        return Response(
+            {"detail": "Удаление мест через API запрещено"},
+            status=status.HTTP_405_METHOD_NOT_ALLOWED
+        )
+
+    @swagger_auto_schema(
         operation_description="Получение списка мест для конкретного транспортного средства",
         operation_summary="Места транспортного средства",
         manual_parameters=[
@@ -45,15 +112,7 @@ class SeatViewSet(mixins.ListModelMixin,
     )
     @action(detail=False, methods=['get'], url_path='by_vehicle/(?P<vehicle_id>[^/.]+)')
     def get_seats_by_vehicle(self, request, vehicle_id=None):
-        """Получение списка мест для конкретного транспортного средства с кэшированием"""
-        # Формируем ключ кэша
-        cache_key = f"seats_for_vehicle_{vehicle_id}"
-
-        # Пытаемся получить данные из кэша
-        cached_data = cache.get(cache_key)
-        if cached_data is not None:
-            return Response(cached_data)
-
+        """Получение списка мест для конкретного транспортного средства"""
         try:
             # Проверяем существование транспортного средства
             vehicle = Vehicle.objects.get(pk=vehicle_id)
@@ -61,9 +120,6 @@ class SeatViewSet(mixins.ListModelMixin,
             # Получаем места для этого транспортного средства
             seats = Seat.objects.filter(vehicle=vehicle)
             serializer = self.get_serializer(seats, many=True)
-
-            # Кэшируем результат на 5 минут
-            cache.set(cache_key, serializer.data, 300)
 
             return Response(serializer.data)
         except Vehicle.DoesNotExist:

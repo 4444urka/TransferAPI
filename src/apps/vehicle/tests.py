@@ -1,3 +1,5 @@
+import logging
+
 from django.test import TestCase
 from django.urls import reverse
 from django.contrib.auth import get_user_model
@@ -12,6 +14,7 @@ from apps.vehicle.models import Vehicle
 from apps.trip.models import Trip, City
 
 User = get_user_model()
+logger = logging.getLogger(__name__)
 
 
 class VehicleViewSetTest(APITestCase):
@@ -184,8 +187,8 @@ class VehicleViewSetTest(APITestCase):
             default_ticket_price=1000
         )
         
-        print(f"\nTrip departure_time: {trip.departure_time}")
-        print(f"Trip arrival_time: {trip.arrival_time}")
+        logger.info(f"\nTrip departure_time: {trip.departure_time}")
+        logger.info(f"Trip arrival_time: {trip.arrival_time}")
         
         # Тест 1: Проверка доступности в свободное время
         test1_start = future_time + timedelta(hours=7)
@@ -193,8 +196,8 @@ class VehicleViewSetTest(APITestCase):
         start_time = quote(test1_start.astimezone(datetime_timezone.utc).strftime('%Y-%m-%dT%H:%M:%S+0000'))
         end_time = quote(test1_end.astimezone(datetime_timezone.utc).strftime('%Y-%m-%dT%H:%M:%S+0000'))
         
-        print(f"Test 1 start_time: {test1_start}")
-        print(f"Test 1 end_time: {test1_end}")
+        logger.info(f"Test 1 start_time: {test1_start}")
+        logger.info(f"Test 1 end_time: {test1_end}")
         
         response = self.client.get(
             f"{self.vehicle_availability_url}?start_time={start_time}&end_time={end_time}"
@@ -208,13 +211,13 @@ class VehicleViewSetTest(APITestCase):
         start_time = quote(test2_start.astimezone(datetime_timezone.utc).strftime('%Y-%m-%dT%H:%M:%S+0000'))
         end_time = quote(test2_end.astimezone(datetime_timezone.utc).strftime('%Y-%m-%dT%H:%M:%S+0000'))
         
-        print(f"Test 2 start_time: {test2_start}")
-        print(f"Test 2 end_time: {test2_end}")
+        logger.info(f"Test 2 start_time: {test2_start}")
+        logger.info(f"Test 2 end_time: {test2_end}")
         
         response = self.client.get(
             f"{self.vehicle_availability_url}?start_time={start_time}&end_time={end_time}"
         )
-        print(f"Response data: {response.data}")
+        logger.info(f"Response data: {response.data}")
         
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertFalse(response.data['available'])

@@ -1,6 +1,7 @@
 from django.db import models
 from django.core.exceptions import ValidationError
 
+
 from apps.vehicle.models import Vehicle
 
 # Выбор типа сиденья
@@ -77,16 +78,28 @@ class Seat(models.Model):
     def save(self, *args, **kwargs):
         self.full_clean() 
         super().save(*args, **kwargs)
-    
+
     def delete(self, *args, **kwargs):
         """
-        Запрещает удаление отдельных мест. 
-        Удаление возможно только через удаление транспортного средства.
+        Запрещает удаление отдельных мест через прямой вызов delete().
+        Удаление возможно только через удаление транспортного средства
+        или через обновление количества мест в транспортном средстве.
         """
-        raise ValidationError(
-            "Удаление мест запрещено. Удалите транспортное средство для удаления всех мест."
-        )
+        # Проверяем, вызывается ли delete из сигнала обработки обновления vehicle
+        import inspect
+        frame = inspect.currentframe()
+        try:
+            calling_frame = frame.f_back
+            if calling_frame and 'manage_seats' in calling_frame.f_code.co_name:
+                # Если вызов идет из функции manage_seats в signals.py, разрешаем удаление
+                return super().delete(*args, **kwargs)
+        finally:
+            del frame  # Освобождаем фрейм во избежание утечек памяти
 
+        # Для всех остальных случаев - запрещаем удаление
+        raise ValidationError(
+            "Удаление мест запрещено. Удалите транспортное средство или измените количество мест."
+        )
 
     def __str__(self):
         return f"{self.vehicle} - Место {self.seat_number} ({self.get_seat_type_display()})"

@@ -8,6 +8,9 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, IsAdminUser, AllowAny
 from django_filters import rest_framework as django_filters
 from datetime import datetime
+from django.core.cache import cache
+from django.views.decorators.cache import cache_page
+from django.utils.decorators import method_decorator
 
 from .models import Trip, City
 from .serializers import TripListSerializer, TripDetailSerializer
@@ -81,18 +84,18 @@ class TripViewSet(viewsets.ModelViewSet):
         ],
         tags=["Поездки"]
     )
+    @method_decorator(cache_page(60 * 5))  # кэш на 5 минут
     def list(self, request, *args, **kwargs):
         return super().list(request, *args, **kwargs)
-
 
     @swagger_auto_schema(
         operation_description="Получение детальной информации о конкретной поездке, включая данные о всех местах",
         operation_summary="Детали поездки",
         tags=["Поездки"]
     )
+    @method_decorator(cache_page(60 * 5))
     def retrieve(self, request, *args, **kwargs):
         return super().retrieve(request, *args, **kwargs)
-
 
     @swagger_auto_schema(
         operation_description="Создание новой поездки. Доступно только администраторам.",
@@ -100,26 +103,30 @@ class TripViewSet(viewsets.ModelViewSet):
         tags=["Поездки"]
     )
     def create(self, request, *args, **kwargs):
-        return super().create(request, *args, **kwargs)
-
+        response = super().create(request, *args, **kwargs)
+        # инвалидируем кэш после создания новой поездки
+        cache.delete_pattern('trip_*')
+        return response
 
     @swagger_auto_schema(
         operation_description="Обновление информации о поездке. Доступно только администраторам.",
         operation_summary="Обновление поездки",
         tags=["Поездки"]
     )
-    def update(self, request, *args, **kwargs):
-        return super().update(request, *args, **kwargs)
-
+    def update(self, request, *args, **kwargs): # требует все поля для обновления
+        response = super().update(request, *args, **kwargs)
+        cache.delete_pattern('trip_*')
+        return response
 
     @swagger_auto_schema(
         operation_description="Частичное обновление информации о поездке. Доступно только администраторам.",
         operation_summary="Частичное обновление поездки",
         tags=["Поездки"]
     )
-    def partial_update(self, request, *args, **kwargs):
-        return super().partial_update(request, *args, **kwargs)
-
+    def partial_update(self, request, *args, **kwargs): # позволяет обновлять только указанные поля
+        response = super().partial_update(request, *args, **kwargs)
+        cache.delete_pattern('trip_*')
+        return response
 
     @swagger_auto_schema(
         operation_description="Удаление поездки. Доступно только администраторам.",
@@ -127,8 +134,9 @@ class TripViewSet(viewsets.ModelViewSet):
         tags=["Поездки"]
     )
     def destroy(self, request, *args, **kwargs):
-        return super().destroy(request, *args, **kwargs)
-
+        response = super().destroy(request, *args, **kwargs)
+        cache.delete_pattern('trip_*')
+        return response
 
     def get_serializer_class(self):
         if self.action == 'retrieve':
@@ -155,13 +163,13 @@ class TripViewSet(viewsets.ModelViewSet):
         )
         return queryset
 
-
     @swagger_auto_schema(
         operation_description="Получение списка городов",
         operation_summary="Список городов",
         tags=["Поездки"]
     )
     @action(detail=False, methods=['get'])
+    @method_decorator(cache_page(60 * 60))  # кэш на 1 час, так как список городов меняется редко
     def cities(self, request):
         """Получение списка городов для фильтрации"""
         cities = City.objects.all()
@@ -169,7 +177,6 @@ class TripViewSet(viewsets.ModelViewSet):
             'origin_cities': [{'id': c.id, 'name': c.name} for c in cities],
             'destination_cities': [{'id': c.id, 'name': c.name} for c in cities]
         })
-
 
     @swagger_auto_schema(
         operation_description="Получение списка свободных мест на поездке",

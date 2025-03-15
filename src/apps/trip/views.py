@@ -146,12 +146,10 @@ class TripViewSet(viewsets.ModelViewSet):
             permission_classes = [AllowAny]
         return [permission() for permission in permission_classes]
 
-    def get_queryset(self):
+    def get_queryset(self): # сюда можно добавлять фильтрации
         """Базовая фильтрация"""
         queryset = Trip.objects.select_related(
             'origin', 'destination', 'vehicle'
-        ).filter(
-            departure_time__gte=timezone.now()
         )
         return queryset
 

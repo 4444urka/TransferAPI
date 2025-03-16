@@ -18,8 +18,10 @@ services:
       - redis_data:/data
 
   web:
-    build: .
-    command: poetry run python src/manage.py runserver 0.0.0.0:8000
+    build: 
+      context: .
+      dockerfile: Dockerfile
+    command: python src/manage.py runserver 0.0.0.0:8000
     volumes:
       - .:/app
     ports:

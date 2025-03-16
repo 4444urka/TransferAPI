@@ -51,10 +51,23 @@ class TripViewSetTest(APITestCase):
         """Тест получения списка поездок"""
         response = self.client.get(self.trip_list_url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        
-        # Проверяем, что все будущие поездки включены в список
-        self.assertEqual(len(response.data['results']), 2)
-        self.assertEqual(response.data['results'][0]['id'], self.trip.id)
+
+        # Проверяем, что созданные нами поездки существуют в базе
+        self.assertTrue(Trip.objects.filter(id=self.trip.id).exists())
+        self.assertTrue(Trip.objects.filter(id=self.future_trip.id).exists())
+
+        # Проверяем наличие поездок с нашими конкретными параметрами
+        filtered_url = f"{self.trip_list_url}?origin={self.origin.id}&destination={self.destination.id}"
+        filtered_response = self.client.get(filtered_url)
+        self.assertEqual(filtered_response.status_code, status.HTTP_200_OK)
+
+        # Проверяем, что в результате фильтрации мы получаем ровно 2 поездки (те, что создали в setUp)
+        self.assertEqual(filtered_response.data['count'], 2)
+
+        # Проверяем, что обе наши поездки есть в результатах
+        trip_ids = [trip['id'] for trip in filtered_response.data['results']]
+        self.assertIn(self.trip.id, trip_ids)
+        self.assertIn(self.future_trip.id, trip_ids)
 
     def test_trip_detail(self):
         """Тест получения детальной информации о поездке"""

@@ -78,8 +78,8 @@ class Vehicle(models.Model):
 
     def clean(self):
         super().clean()
-        
-        # Проверка минимального и максимального количества мест (если понадобится)
+
+        # Проверка минимального и максимального количества мест
         seats_limits = {
             'bus': (1, 199),
             'minibus': (1, 99),
@@ -88,9 +88,9 @@ class Vehicle(models.Model):
             'suv': (1, 99),
             'van': (1, 99),
         }
-        
+
         min_seats, max_seats = seats_limits.get(self.vehicle_type, (1, 60))
-        
+
         if self.total_seats < min_seats or self.total_seats > max_seats:
             raise ValidationError(
                 f'Для типа {self.get_vehicle_type_display()} количество мест '
@@ -100,6 +100,12 @@ class Vehicle(models.Model):
         # Дополнительные проверки для премиум автомобилей
         if self.vehicle_type == 'premium_car' and not self.is_comfort:
             raise ValidationError('Премиум автомобиль должен иметь повышенный уровень комфорта')
+
+        # Удаляем ограничение на изменение количества мест
+        # if self.pk:
+        #     original = Vehicle.objects.get(pk=self.pk)
+        #     if original.total_seats != self.total_seats:
+        #         raise ValidationError("Изменение количества мест запрещено")
 
     def save(self, *args, **kwargs):
         self.clean()

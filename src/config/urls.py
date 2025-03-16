@@ -6,28 +6,18 @@ from drf_yasg import openapi
 from rest_framework import permissions
 
 from apps.booking.views import BookingViewSet
-
-# Настройка Swagger UI
-schema_view = get_schema_view(
-    openapi.Info(
-        title="Transfer API",
-        default_version='v1',
-        description="API для сервиса трансферов Armada",
-        terms_of_service="https://www.google.com/policies/terms/",
-        contact=openapi.Contact(email="psinka2006@gmail.com"),
-        license=openapi.License(name="BSD License"),
-    ),
-    public=True,
-    permission_classes=[permissions.AllowAny],
-)
+from apps.seat.views import SeatViewSet
+from config.openapi import schema_view
 
 router = DefaultRouter()
 router.register(r'bookings', BookingViewSet, basename='booking')
+router.register(r'seats', SeatViewSet, basename='seat')
 
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('auth/', include('apps.auth.urls')),
     path('api/trips/', include('apps.trip.urls')),
+    path('api/vehicles/', include('apps.vehicle.urls')),
     path('api/', include(router.urls)),
 
     # URL для Swagger UI

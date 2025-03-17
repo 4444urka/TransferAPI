@@ -3,40 +3,63 @@ from rest_framework import status
 from django.urls import reverse
 
 class RegistrationUserTest(APITestCase):
+    def setUp(self):
+        self.test_password = "221312312ya"
+
     def test_create_user(self):
         response = self.client.post('/auth/register/',
-                                    {'phone_number': '+79147282571', 'password': '1234'},
+                                    {'phone_number': '+79147282571', 'password': self.test_password},
                                     format='json')
         self.assertEqual(response.status_code, 201)
 
     def test_create_user_with_existing_phone_number(self):
         self.client.post('/auth/register/',
-                         {'phone_number': '+79147282571', 'password': '1234'},
+                         {'phone_number': '+79147282571', 'password': self.test_password},
                          format='json')
         response = self.client.post('/auth/register/',
-                                    {'phone_number': '+79147282571', 'password': '5678'},
+                                    {'phone_number': '+79147282571', 'password': self.test_password},
                                     format='json')
         self.assertEqual(response.status_code, 400)
 
     def test_create_user_with_invalid_phone_numbers(self):
         response = self.client.post('/auth/register/',
-                                    {'phone_number': 'invalid_phone', 'password': '1234'},
+                                    {'phone_number': 'invalid_phone', 'password': self.test_password},
                                     format='json')
         self.assertEqual(response.status_code, 400)
 
         response = self.client.post('/auth/register/',
-                                    {'phone_number': '1111111111', 'password': '1234'},
+                                    {'phone_number': '1111111111', 'password': self.test_password},
                                     format='json')
         self.assertEqual(response.status_code, 400)
 
         response = self.client.post('/auth/register/',
-                                    {'phone_number': '', 'password': '1234'},
+                                    {'phone_number': '', 'password': self.test_password},
                                     format='json')
         self.assertEqual(response.status_code, 400)
 
     def test_create_user_without_password(self):
         response = self.client.post('/auth/register/',
                                     {'phone_number': '+79147282571'},
+                                    format='json')
+        self.assertEqual(response.status_code, 400)
+
+
+    # Проверка валидации
+    def test_password_cant_be_too_short(self):
+        response = self.client.post('/auth/register/',
+                                    {'phone_number': '+79147282571', 'password': 'short'},
+                                    format='json')
+        self.assertEqual(response.status_code, 400)
+
+    def test_password_cant_be_too_common(self):
+        response = self.client.post('/auth/register/',
+                                    {'phone_number': '+79147282571', 'password': 'password'},
+                                    format='json')
+        self.assertEqual(response.status_code, 400)
+
+    def test_password_cant_be_entirely_numeric(self):
+        response = self.client.post('/auth/register/',
+                                    {'phone_number': '+79147282571', 'password': '223392489'},
                                     format='json')
         self.assertEqual(response.status_code, 400)
 

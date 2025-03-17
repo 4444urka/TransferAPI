@@ -21,7 +21,18 @@ class TripFilter(django_filters.FilterSet):
     date = django_filters.DateFilter(field_name="departure_time", lookup_expr='date')
     departure_after = django_filters.DateTimeFilter(field_name="departure_time", lookup_expr='gte')
     departure_before = django_filters.DateTimeFilter(field_name="departure_time", lookup_expr='lte')
+    current = django_filters.BooleanFilter(method='filter_current', label='Актуальные поездки')
     
+    def filter_current(self, queryset, name, value):
+        """
+        Если current=true, то возвращаем только поездки, у которых время отправления больше или равно текущему.
+        Иначе возвращаем весь queryset без дополнительной фильтрации.
+        """
+        if value:
+            now = timezone.now()
+            return queryset.filter(departure_time__gte=now)
+        return queryset
+
     class Meta:
         model = Trip
         fields = {
@@ -80,7 +91,10 @@ class TripViewSet(viewsets.ModelViewSet):
                               type=openapi.TYPE_STRING),
             openapi.Parameter('ordering', openapi.IN_QUERY,
                               description="Поле для сортировки (departure_time, -departure_time, default_ticket_price, -default_ticket_price, arrival_time, -arrival_time)",
-                              type=openapi.TYPE_STRING)
+                              type=openapi.TYPE_STRING),
+            openapi.Parameter('current', openapi.IN_QUERY, 
+                              description="Флаг для фильтрации актуальных поездок (true/false). Если true, возвращаются только поездки, у которых departure_time >= текущему времени.",
+                              type=openapi.TYPE_BOOLEAN),
         ],
         tags=["Поездки"]
     )

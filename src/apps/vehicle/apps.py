@@ -6,3 +6,6 @@ class VehicleConfig(AppConfig):
     name = 'apps.vehicle'
     label = 'transfer_vehicle'
     verbose_name = "Транспорт"
+
+    def ready(self):
+        import apps.vehicle.signals

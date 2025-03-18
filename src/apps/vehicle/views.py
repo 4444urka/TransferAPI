@@ -1,13 +1,12 @@
-from django.shortcuts import render
+import pytz
+from django.utils import timezone
+from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework import viewsets, permissions, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.filters import SearchFilter, OrderingFilter
-from django.utils import timezone
-from django.db.models import Q
-from datetime import timezone as datetime_timezone
 
 from apps.vehicle.models import Vehicle
 from apps.vehicle.serializers import VehicleSerializer, VehicleDetailSerializer
@@ -105,6 +104,20 @@ class VehicleViewSet(viewsets.ModelViewSet):
         return VehicleSerializer
 
     @swagger_auto_schema(
+        manual_parameters=[
+            openapi.Parameter(
+                'start_time', openapi.IN_QUERY,
+                description='Время начала периода в формате ISO (YYYY-MM-DDThh:mm:ss)',
+                type=openapi.TYPE_STRING,
+                required=True
+            ),
+            openapi.Parameter(
+                'end_time', openapi.IN_QUERY,
+                description='Время окончания периода в формате ISO (YYYY-MM-DDThh:mm:ss)',
+                type=openapi.TYPE_STRING,
+                required=True
+            ),
+        ],
         operation_description="Проверка доступности транспортного средства..",
         operation_summary="Доступность транспортного средства",
         tags=["Транспортные средства"]
@@ -115,68 +128,55 @@ class VehicleViewSet(viewsets.ModelViewSet):
         Проверка доступности транспортного средства.
         """
         vehicle = self.get_object()
-        
+
         start_time = request.query_params.get('start_time')
         end_time = request.query_params.get('end_time')
-        
+
         if not start_time or not end_time:
             return Response({
                 'available': False,
                 'message': 'Необходимо указать start_time и end_time в формате ISO'
             }, status=status.HTTP_400_BAD_REQUEST)
-            
+
         try:
-            start_time = timezone.datetime.strptime(start_time, '%Y-%m-%dT%H:%M:%S%z')
-            end_time = timezone.datetime.strptime(end_time, '%Y-%m-%dT%H:%M:%S%z')
-            
+            # Гибкий парсинг дат с поддержкой разных форматов
+            start_time = timezone.datetime.fromisoformat(start_time.replace('Z', '+00:00'))
+            end_time = timezone.datetime.fromisoformat(end_time.replace('Z', '+00:00'))
+
+            # Если часовой пояс не указан, считаем UTC
             if timezone.is_naive(start_time):
-                start_time = timezone.make_aware(start_time)
+                start_time = timezone.make_aware(start_time, timezone=pytz.UTC)
             if timezone.is_naive(end_time):
-                end_time = timezone.make_aware(end_time)
-                
-            start_time = start_time.astimezone(datetime_timezone.utc)
-            end_time = end_time.astimezone(datetime_timezone.utc)
-            
+                end_time = timezone.make_aware(end_time, timezone=pytz.UTC)
+
             if start_time >= end_time:
                 return Response({
                     'available': False,
                     'message': 'Время начала должно быть меньше времени окончания'
                 }, status=status.HTTP_400_BAD_REQUEST)
-                
+
             # Проверка пересечения с существующими поездками
             trips = Trip.objects.filter(vehicle=vehicle)
-            
-            overlapping_trips = []
+
             for trip in trips:
-                trip_departure = trip.departure_time.astimezone(datetime_timezone.utc)
-                trip_arrival = trip.arrival_time.astimezone(datetime_timezone.utc)
-                
-                # Проверяем все возможные случаи пересечения
-                if (
-                    (trip_departure <= start_time and trip_arrival >= start_time) or  # Начало внутри поездки
-                    (trip_departure <= end_time and trip_arrival >= end_time) or      # Конец внутри поездки
-                    (trip_departure >= start_time and trip_arrival <= end_time) or    # Поездка внутри периода
-                    (trip_departure <= start_time and trip_arrival >= end_time)       # Период полностью покрывает поездку
-                ):
-                    overlapping_trips.append(trip)
-            
-            for trip in overlapping_trips:
-                trip_departure = trip.departure_time.astimezone(datetime_timezone.utc)
-                trip_arrival = trip.arrival_time.astimezone(datetime_timezone.utc)
-            
-            if overlapping_trips:
-                return Response({
-                    'available': False,
-                    'message': 'Транспортное средство занято в указанное время'
-                }, status=status.HTTP_200_OK)
-            
+                # Получаем время в UTC для корректного сравнения
+                trip_start = timezone.localtime(trip.departure_time, timezone=pytz.UTC)
+                trip_end = timezone.localtime(trip.arrival_time, timezone=pytz.UTC)
+
+                # Проверяем все случаи пересечения периодов
+                if not (end_time <= trip_start or start_time >= trip_end):
+                    return Response({
+                        'available': False,
+                        'message': 'Транспортное средство занято в указанное время'
+                    }, status=status.HTTP_200_OK)
+
             return Response({
                 'available': True,
                 'message': 'Транспортное средство доступно в указанное время'
             }, status=status.HTTP_200_OK)
-            
-        except (ValueError, TypeError):
+
+        except Exception as e:
             return Response({
                 'available': False,
-                'message': 'Неверный формат даты/времени. Используйте ISO формат'
+                'message': f'Неверный формат даты/времени: {str(e)}'
             }, status=status.HTTP_400_BAD_REQUEST)

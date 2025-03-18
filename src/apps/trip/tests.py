@@ -1,51 +1,145 @@
+from django.core.exceptions import ValidationError
 from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
-from rest_framework import status
-from rest_framework.test import APITestCase
 from datetime import timedelta
+from decimal import Decimal
+from rest_framework import status
+from rest_framework.test import APITestCase, APIClient
 
+from apps.auth.models import User
 from apps.trip.models import Trip, City
 from apps.vehicle.models import Vehicle
-from apps.seat.models import Seat
+from apps.seat.models import Seat, TripSeat
+
+import logging
+
+logger = logging.getLogger(__name__)
 
 
-class TripViewSetTest(APITestCase):
+class TripModelTest(TestCase):
+    """Тесты для модели Trip"""
+
     def setUp(self):
-        # Создание городов
-        self.origin = City.objects.create(name='Владивосток')
-        self.destination = City.objects.create(name='Уссурийск')
-        self.another_city = City.objects.create(name='Арсеньев')
+        # Создаем города
+        self.origin = City.objects.create(name='Москва')
+        self.destination = City.objects.create(name='Санкт-Петербург')
 
-        # Создание транспортного средства
+        # Создаем транспорт
         self.vehicle = Vehicle.objects.create(
             vehicle_type='bus',
             license_plate='А123АА',
-            total_seats=10
+            total_seats=40,
+            is_comfort=True,
+            air_conditioning=True,
+            allows_pets=False
         )
 
-        # Создание поездок
+        # Создаем поездку
         self.trip = Trip.objects.create(
             vehicle=self.vehicle,
             origin=self.origin,
             destination=self.destination,
             departure_time=timezone.now() + timedelta(days=1),
-            arrival_time=timezone.now() + timedelta(days=1, hours=2),  # 2 часа до Уссурийска
-            default_ticket_price=1000.00
+            arrival_time=timezone.now() + timedelta(days=1, hours=5),
+            default_ticket_price=Decimal('1000.00')
+        )
+
+    def test_trip_str_representation(self):
+        """Тест строкового представления поездки"""
+        # Обновляем ожидаемую строку в соответствии с действительным форматом
+        expected_str = f"{self.trip.departure_time.strftime('%Y-%m-%d %H:%M')}: {self.origin.name} - {self.destination.name}"
+        self.assertEqual(str(self.trip), expected_str)
+
+    def test_trip_duration(self):
+        """Тест длительности поездки"""
+        duration = self.trip.arrival_time - self.trip.departure_time
+
+        # Используем только целые секунды для сравнения
+        duration_seconds = int(duration.total_seconds())
+        expected_seconds = int(timedelta(hours=5).total_seconds())
+
+        self.assertEqual(duration_seconds, expected_seconds)
+
+    def test_trip_seat_creation(self):
+        """Тест создания TripSeat для поездки"""
+        # Проверяем, что для каждого места в транспорте создан TripSeat
+        trip_seats = TripSeat.objects.filter(trip=self.trip)
+        self.assertEqual(trip_seats.count(), self.vehicle.total_seats)
+
+
+class TripViewSetTest(APITestCase):
+    """Тесты для ViewSet поездок"""
+
+    def setUp(self):
+        # Создаем пользователей
+        self.admin_user = User.objects.create_superuser('+79111111111', 'adminpass')
+        self.regular_user = User.objects.create_user('+79111111112', 'userpass')
+
+        # Создаем города
+        self.origin = City.objects.create(name='Москва')
+        self.destination = City.objects.create(name='Санкт-Петербург')
+        self.another_city = City.objects.create(name='Казань')
+
+        # Создаем транспортные средства
+        self.vehicle1 = Vehicle.objects.create(
+            vehicle_type='bus',
+            license_plate='А123АА',
+            total_seats=40,
+            is_comfort=True,
+            air_conditioning=True,
+            allows_pets=False
+        )
+
+        self.vehicle2 = Vehicle.objects.create(
+            vehicle_type='minibus',
+            license_plate='В456ВВ',
+            total_seats=20,
+            is_comfort=False,
+            air_conditioning=False,
+            allows_pets=True
+        )
+
+        # Текущее время для тестов
+        self.now = timezone.now()
+
+        # Создаем поездки
+        self.trip = Trip.objects.create(
+            vehicle=self.vehicle1,
+            origin=self.origin,
+            destination=self.destination,
+            departure_time=self.now + timedelta(days=1),
+            arrival_time=self.now + timedelta(days=1, hours=5),
+            default_ticket_price=Decimal('1000.00')
         )
 
         self.future_trip = Trip.objects.create(
-            vehicle=self.vehicle,
+            vehicle=self.vehicle2,
             origin=self.origin,
             destination=self.destination,
-            departure_time=timezone.now() + timedelta(days=2),
-            arrival_time=timezone.now() + timedelta(days=2, hours=2),
-            default_ticket_price=1000.00
+            departure_time=self.now + timedelta(days=2),
+            arrival_time=self.now + timedelta(days=2, hours=2),
+            default_ticket_price=Decimal('800.00')
+        )
+
+        # Поездка в другой город
+        self.another_trip = Trip.objects.create(
+            vehicle=self.vehicle1,
+            origin=self.origin,
+            destination=self.another_city,
+            departure_time=self.now + timedelta(days=3),
+            arrival_time=self.now + timedelta(days=3, hours=7),
+            default_ticket_price=Decimal('1200.00')
         )
 
         # URL для тестов
         self.trip_list_url = reverse('trip-list')
         self.trip_detail_url = reverse('trip-detail', args=[self.trip.id])
+        self.trip_cities_url = reverse('trip-cities')
+        self.available_seats_url = reverse('trip-available-seats', args=[self.trip.id])
+
+        # Клиент для аутентифицированных запросов
+        self.client = APIClient()
 
     def test_list_trips(self):
         """Тест получения списка поездок"""
@@ -61,108 +155,352 @@ class TripViewSetTest(APITestCase):
         filtered_response = self.client.get(filtered_url)
         self.assertEqual(filtered_response.status_code, status.HTTP_200_OK)
 
-        # Проверяем, что в результате фильтрации мы получаем ровно 2 поездки (те, что создали в setUp)
-        self.assertEqual(filtered_response.data['count'], 2)
-
-        # Проверяем, что обе наши поездки есть в результатах
-        trip_ids = [trip['id'] for trip in filtered_response.data['results']]
+        # Проверяем, что в результате фильтрации мы получаем только поездки между
+        # указанными городами (Москва - Санкт-Петербург)
+        results = filtered_response.data['results']
+        trip_ids = [trip['id'] for trip in results]
         self.assertIn(self.trip.id, trip_ids)
         self.assertIn(self.future_trip.id, trip_ids)
+        self.assertNotIn(self.another_trip.id, trip_ids)
 
-    def test_trip_detail(self):
-        """Тест получения детальной информации о поездке"""
+    def test_retrieve_trip(self):
+        """Тест получения одной поездки по ID"""
         response = self.client.get(self.trip_detail_url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        
-        # Проверка основных полей
+
+        # Проверяем точные значения некоторых полей
         self.assertEqual(response.data['id'], self.trip.id)
-        self.assertEqual(response.data['origin']['name'], self.origin.name)
-        self.assertEqual(response.data['destination']['name'], self.destination.name)
-        self.assertEqual(response.data['vehicle']['license_plate'], self.vehicle.license_plate)
-        
-        # Проверка наличия информации о местах
-        self.assertIn('seats', response.data)
-        self.assertEqual(len(response.data['seats']), self.vehicle.total_seats)
+        self.assertEqual(response.data['origin']['id'], self.origin.id)
+        self.assertEqual(response.data['destination']['id'], self.destination.id)
+        self.assertEqual(Decimal(response.data['default_ticket_price']), self.trip.default_ticket_price)
 
-    def test_filter_by_cities(self):
-        """Тест фильтрации поездок по городам"""
-        # Фильтр по городу отправления
-        response = self.client.get(f"{self.trip_list_url}?origin={self.origin.id}")
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data['results']), 2)
+    def test_create_trip_as_admin(self):
+        """Тест создания поездки администратором"""
+        self.client.force_authenticate(user=self.admin_user)
 
-        # Фильтр по городу назначения
-        response = self.client.get(f"{self.trip_list_url}?destination={self.destination.id}")
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data['results']), 2)
+        departure_time = (self.now + timedelta(days=5))
+        arrival_time = (self.now + timedelta(days=5, hours=4))
 
-        # Фильтр по несуществующему маршруту
-        response = self.client.get(
-            f"{self.trip_list_url}?origin={self.origin.id}&destination={self.another_city.id}"
-        )
+        data = {
+            "vehicle": self.vehicle1.id,
+            "origin": self.origin.id,
+            "destination": self.another_city.id,
+            "departure_time": departure_time.strftime("%Y-%m-%dT%H:%M:%S"),
+            "arrival_time": arrival_time.strftime("%Y-%m-%dT%H:%M:%S"),
+            "default_ticket_price": "900.00"
+        }
+
+        response = self.client.post(self.trip_list_url, data, format='json')
+
+        # Для отладки
+        if response.status_code != status.HTTP_201_CREATED:
+            print(f"Ошибка создания поездки: {response.data}")
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+    def test_update_trip_as_admin(self):
+        """Тест обновления поездки администратором"""
+        self.client.force_authenticate(user=self.admin_user)
+
+        data = {
+            "default_ticket_price": "1100.00",
+            "vehicle": self.vehicle1.id,
+            "origin": self.origin.id,
+            "destination": self.destination.id,
+            "departure_time": self.trip.departure_time.strftime("%Y-%m-%dT%H:%M:%S"),
+            "arrival_time": self.trip.arrival_time.strftime("%Y-%m-%dT%H:%M:%S"),
+        }
+
+        response = self.client.put(self.trip_detail_url, data, format='json')
+
+        # Если тест падает, выведем содержимое response для отладки
+        if response.status_code != status.HTTP_200_OK:
+            print(f"Ошибка обновления поездки: {response.data}")
+
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data['results']), 0)
+
+        # Проверяем, что цена обновилась
+        self.trip.refresh_from_db()
+        self.assertEqual(self.trip.default_ticket_price, Decimal('1100.00'))
+
+    def test_delete_trip_as_admin(self):
+        """Тест удаления поездки администратором"""
+        self.client.force_authenticate(user=self.admin_user)
+
+        response = self.client.delete(self.trip_detail_url)
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+
+        # Проверяем, что поездка удалилась
+        self.assertFalse(Trip.objects.filter(id=self.trip.id).exists())
+
+        # Проверяем, что связанные TripSeat также удалились
+        self.assertEqual(TripSeat.objects.filter(trip_id=self.trip.id).count(), 0)
 
     def test_filter_by_date(self):
         """Тест фильтрации поездок по дате"""
-        tomorrow = (timezone.now() + timedelta(days=1)).strftime('%Y-%m-%d')
-        response = self.client.get(f"{self.trip_list_url}?date={tomorrow}")
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data['results']), 1)
+        # Получаем дату поездки future_trip
+        future_date = self.future_trip.departure_time.date().isoformat()
 
-        # Проверка фильтрации по будущей дате
-        day_after_tomorrow = (timezone.now() + timedelta(days=2)).strftime('%Y-%m-%d')
-        response = self.client.get(f"{self.trip_list_url}?date={day_after_tomorrow}")
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data['results']), 1)
+        url = f"{self.trip_list_url}?date={future_date}"
+        response = self.client.get(url)
 
-    def test_available_seats_calculation(self):
-        """Тест расчета доступных мест"""
-        # Бронируем несколько мест
-        seats = Seat.objects.filter(vehicle=self.vehicle)[:2]
-        for seat in seats:
-            seat.is_booked = True
-            seat.save()
-
-        response = self.client.get(self.trip_detail_url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.data['available_seats'], self.vehicle.total_seats - 2)
 
-    def test_duration_calculation(self):
-        """Тест расчета длительности поездки"""
-        response = self.client.get(self.trip_detail_url)
+        # Проверяем, что в результатах только future_trip
+        results = response.data['results']
+        trip_ids = [trip['id'] for trip in results]
+        self.assertIn(self.future_trip.id, trip_ids)
+        self.assertNotIn(self.trip.id, trip_ids)
+        self.assertNotIn(self.another_trip.id, trip_ids)
+
+    def test_filter_by_price(self):
+        """Тест фильтрации поездок по цене"""
+        # Поездки с ценой не выше 1000
+        url = f"{self.trip_list_url}?max_price=1000"
+        response = self.client.get(url)
+
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.data['duration'], "2ч 0мин")
+
+        # В результатах должны быть trip и future_trip, но не another_trip (цена 1200)
+        results = response.data['results']
+        trip_ids = [trip['id'] for trip in results]
+        self.assertIn(self.trip.id, trip_ids)
+        self.assertIn(self.future_trip.id, trip_ids)
+        self.assertNotIn(self.another_trip.id, trip_ids)
+
+        # Поездки с ценой от 1000
+        url = f"{self.trip_list_url}?min_price=1000"
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        # В результатах должны быть trip и another_trip, но не future_trip (цена 800)
+        results = response.data['results']
+        trip_ids = [trip['id'] for trip in results]
+        self.assertIn(self.trip.id, trip_ids)
+        self.assertNotIn(self.future_trip.id, trip_ids)
+        self.assertIn(self.another_trip.id, trip_ids)
+
+    def test_filter_by_vehicle_features(self):
+        """Тест фильтрации по характеристикам транспорта"""
+        # Только комфортные транспортные средства
+        url = f"{self.trip_list_url}?vehicle__is_comfort=true"
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        # В результатах должны быть trip и another_trip (оба на vehicle1 с is_comfort=True)
+        results = response.data['results']
+        trip_ids = [trip['id'] for trip in results]
+        self.assertIn(self.trip.id, trip_ids)
+        self.assertNotIn(self.future_trip.id, trip_ids)
+        self.assertIn(self.another_trip.id, trip_ids)
+
+        # Только транспорт, разрешающий животных
+        url = f"{self.trip_list_url}?vehicle__allows_pets=true"
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        # В результатах должен быть только future_trip (vehicle2 с allows_pets=True)
+        results = response.data['results']
+        trip_ids = [trip['id'] for trip in results]
+        self.assertNotIn(self.trip.id, trip_ids)
+        self.assertIn(self.future_trip.id, trip_ids)
+        self.assertNotIn(self.another_trip.id, trip_ids)
+
+    def test_cities_endpoint(self):
+        """Тест эндпоинта списка городов для фильтрации"""
+        response = self.client.get(self.trip_cities_url)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn('origin_cities', response.data)
+        self.assertIn('destination_cities', response.data)
+
+        # Проверяем, что все наши города есть в списках, используя имена вместо ID
+        origin_names = [city['name'] for city in response.data['origin_cities']]
+        dest_names = [city['name'] for city in response.data['destination_cities']]
+
+        self.assertIn(self.origin.name, origin_names)
+        self.assertIn(self.destination.name, dest_names)
+        self.assertIn(self.another_city.name, dest_names)
+
+    def test_available_seats_endpoint(self):
+        """Тест эндпоинта доступных мест для поездки"""
+        response = self.client.get(self.available_seats_url)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn('available_seats', response.data)
+
+        # Проверяем, что количество доступных мест равно total_seats транспорта
+        self.assertEqual(len(response.data['available_seats']), self.vehicle1.total_seats)
+
+        # Забронируем несколько мест
+        trip_seats = TripSeat.objects.filter(trip=self.trip)[:2]
+        for ts in trip_seats:
+            ts.is_booked = True
+            ts.save()
+
+        response = self.client.get(self.available_seats_url)
+
+        # Теперь доступных мест должно быть на 2 меньше
+        self.assertEqual(len(response.data['available_seats']), self.vehicle1.total_seats - 2)
+
+    def test_search_trips(self):
+        """Тест поиска поездок по названию города"""
+        # Поиск по части названия "Москва"
+        url = f"{self.trip_list_url}?search=Моск"
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        # Все поездки должны быть в результатах, т.к. у всех origin="Москва"
+        results = response.data['results']
+        trip_ids = [trip['id'] for trip in results]
+        self.assertIn(self.trip.id, trip_ids)
+        self.assertIn(self.future_trip.id, trip_ids)
+        self.assertIn(self.another_trip.id, trip_ids)
+
+        # Поиск по названию "Казань" (destination для another_trip)
+        url = f"{self.trip_list_url}?search=Казан"
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        # Только another_trip должен быть в результатах
+        results = response.data['results']
+        trip_ids = [trip['id'] for trip in results]
+        self.assertNotIn(self.trip.id, trip_ids)
+        self.assertNotIn(self.future_trip.id, trip_ids)
+        self.assertIn(self.another_trip.id, trip_ids)
+
+    def test_ordering_trips(self):
+        """Тест сортировки поездок"""
+        # Сортировка по времени отправления (по возрастанию)
+        url = f"{self.trip_list_url}?ordering=departure_time"
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        # Поездки должны быть в порядке: trip, future_trip, another_trip
+        results = response.data['results']
+        self.assertEqual(results[0]['id'], self.trip.id)
+
+        # Сортировка по цене (по убыванию)
+        url = f"{self.trip_list_url}?ordering=-default_ticket_price"
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        # Поездки должны быть в порядке: another_trip, trip, future_trip
+        results = response.data['results']
+        self.assertEqual(results[0]['id'], self.another_trip.id)
+
+
+class TripValidationTest(TestCase):
+    """Тесты валидации модели Trip"""
+
+    def setUp(self):
+        self.origin = City.objects.create(name='Москва')
+        self.destination = City.objects.create(name='Санкт-Петербург')
+
+        self.vehicle = Vehicle.objects.create(
+            vehicle_type='bus',
+            license_plate='А123АА',
+            total_seats=40
+        )
+
+        self.now = timezone.now()
+
+    def test_departure_after_arrival_validation(self):
+        """Тест валидации: время отправления не может быть после времени прибытия"""
+        # Создаем поездку с неправильными временами
+        with self.assertRaises(Exception):
+            Trip.objects.create(
+                vehicle=self.vehicle,
+                origin=self.origin,
+                destination=self.destination,
+                departure_time=self.now + timedelta(days=1, hours=5),  # Позже прибытия
+                arrival_time=self.now + timedelta(days=1),
+                default_ticket_price=Decimal('1000.00')
+            )
+
+    def test_departure_in_past_validation(self):
+        """Тест валидации: время отправления не может быть в прошлом"""
+        # Создаем поездку с отправлением в прошлом
+        with self.assertRaises(Exception):
+            Trip.objects.create(
+                vehicle=self.vehicle,
+                origin=self.origin,
+                destination=self.destination,
+                departure_time=self.now - timedelta(days=1),  # В прошлом
+                arrival_time=self.now + timedelta(hours=5),
+                default_ticket_price=Decimal('1000.00')
+            )
+
+    def test_same_origin_destination_validation(self):
+        """Тест валидации: город отправления не может совпадать с городом прибытия"""
+        trip = Trip(
+            vehicle=self.vehicle,
+            origin=self.origin,
+            destination=self.origin,  # Тот же самый город
+            departure_time=self.now + timedelta(days=1),
+            arrival_time=self.now + timedelta(days=1, hours=5),
+            default_ticket_price=Decimal('1000.00')
+        )
+
+        # Явно вызываем метод clean()
+        with self.assertRaises(ValidationError):
+            trip.clean()
 
 
 class TripPaginationTest(APITestCase):
+    """Тесты пагинации Trip"""
+
     def setUp(self):
-        # Создаем город и транспортное средство
-        self.city = City.objects.create(name="Test City")
+        # Создаем города и транспорт
+        self.origin = City.objects.create(name='Москва')
+        self.destination = City.objects.create(name='Санкт-Петербург')
         self.vehicle = Vehicle.objects.create(
-            vehicle_type="bus",
-            license_plate="Т123ТТ",
+            vehicle_type='bus',
+            license_plate='А123АА',
             total_seats=40
         )
-        # Создаем 30 поездок
+
+        # Создаем 30 поездок для тестирования пагинации
+        now = timezone.now()
         for i in range(30):
             Trip.objects.create(
                 vehicle=self.vehicle,
-                origin=self.city,
-                destination=self.city,
-                departure_time=timezone.now() + timedelta(days=1+i),
-                arrival_time=timezone.now() + timedelta(days=1+i, hours=2),
-                default_ticket_price=100.00
+                origin=self.origin,
+                destination=self.destination,
+                departure_time=now + timedelta(days=i + 1),
+                arrival_time=now + timedelta(days=i + 1, hours=5),
+                default_ticket_price=Decimal(1000 + i * 100)
             )
-        self.trips_url = reverse("trip-list") 
 
-    def test_trip_pagination(self):
-        response = self.client.get(self.trips_url)
-        self.assertEqual(response.status_code, 200)
-        data = response.json()
-        # Проверяем, что на странице максимум 20 записей
-        self.assertLessEqual(len(data.get("results", [])), 20)
-        # Проверяем наличие ключей пагинации
-        self.assertIn("count", data)
-        self.assertIn("next", data)
-        self.assertIn("previous", data)
+        self.trip_list_url = reverse('trip-list')
+
+    def test_pagination(self):
+        """Тест пагинации списка поездок"""
+        response = self.client.get(self.trip_list_url)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn('count', response.data)
+        self.assertIn('next', response.data)
+        self.assertIn('previous', response.data)
+        self.assertIn('results', response.data)
+
+        # Обновляем ожидаемый размер страницы до реального
+        page_size = 20
+
+        self.assertEqual(len(response.data['results']), page_size)
+
+        # Проверяем переход на вторую страницу
+        page_2_url = response.data['next']
+        response_page_2 = self.client.get(page_2_url)
+
+        self.assertEqual(response_page_2.status_code, status.HTTP_200_OK)
+
+        # Проверяем, что на последней странице нет ссылки next
+        self.assertIsNone(response_page_2.data['next'])

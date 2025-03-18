@@ -25,12 +25,12 @@ class TripFilter(django_filters.FilterSet):
     
     def filter_current(self, queryset, name, value):
         """
-        Если current=true, то возвращаем только поездки, у которых время отправления больше или равно текущему.
+        Если current=true, то возвращаем только поездки, у которых время прибытия больше или равно текущему.
         Иначе возвращаем весь queryset без дополнительной фильтрации.
         """
         if value:
             now = timezone.now()
-            return queryset.filter(departure_time__gte=now)
+            return queryset.filter(arrival_time__gte=now)
         return queryset
 
     class Meta:

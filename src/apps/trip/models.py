@@ -57,7 +57,7 @@ class Trip(models.Model):
 
     def __str__(self):
         return f"{self.departure_time.strftime('%Y-%m-%d %H:%M')}: {self.origin} - {self.destination}"
-    
+
     def clean(self):
         """Универсальная валидация для всех способов сохранения"""
         # Проверка времени отправления
@@ -70,6 +70,12 @@ class Trip(models.Model):
         if self.arrival_time <= self.departure_time:
             raise ValidationError({
                 'arrival_time': 'Время прибытия должно быть позже отправления'
+            })
+
+        # Добавляем проверку: город отправления должен отличаться от города прибытия
+        if self.origin == self.destination:
+            raise ValidationError({
+                'destination': 'Город назначения должен отличаться от города отправления'
             })
 
         # Проверка пересечения временных интервалов

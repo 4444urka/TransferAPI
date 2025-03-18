@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from apps.booking.models import Booking
 from apps.trip.models import Trip
-from apps.seat.models import Seat
+from apps.seat.models import Seat, TripSeat
 from apps.seat.serializers import SeatSerializer
 from apps.trip.serializers import TripDetailSerializer
 from apps.payment.serializers import PaymentSerializer
@@ -41,33 +41,24 @@ class BookingDetailSerializer(serializers.ModelSerializer):
         trip = Trip.objects.get(pk=trip_id)
         validated_data['trip'] = trip
 
-        # Получаем места по указанным ID
-        seats = Seat.objects.filter(id__in=seats_ids)
+        trip_seats = TripSeat.objects.filter(trip_id=trip_id, seat_id__in=seats_ids, is_booked=False)
 
-        # Проверяем, что все ID мест действительно существуют
-        if len(seats) != len(seats_ids):
-            # Находим несуществующие ID
-            found_ids = [seat.id for seat in seats]
-            missing_ids = [seat_id for seat_id in seats_ids if seat_id not in found_ids]
+        # Проверяем, что все места доступны
+        if trip_seats.count() != len(seats_ids):
+            # Находим недоступные места
+            available_seat_ids = [ts.seat_id for ts in trip_seats]
+            unavailable_ids = [s_id for s_id in seats_ids if s_id not in available_seat_ids]
             raise serializers.ValidationError(
-                {"seats_ids": f"Места с ID {', '.join(map(str, missing_ids))} не существуют"})
-
-        # Проверяем занятость мест до создания бронирования
-        for seat in seats:
-            # Проверка, что место относится к нужному транспорту
-            if seat.vehicle != trip.vehicle:
-                raise serializers.ValidationError(
-                    {"seats_ids": f"Место {seat} не соответствует транспортному средству рейса"})
-
-            # Проверка занятости
-            if seat.is_booked:
-                raise serializers.ValidationError({"seats_ids": f"Место {seat} уже забронировано"})
+                {"seats_ids": f"Места с ID {', '.join(map(str, unavailable_ids))} недоступны для бронирования"}
+            )
 
         # Создаем бронирование
         booking = Booking.objects.create(**validated_data)
 
-        # Добавляем места
-        booking._seats_to_validate = seats  # Для проверки в clean()
-        booking.seats.set(seats)
+        # Бронируем места
+        for trip_seat in trip_seats:
+            trip_seat.is_booked = True
+            trip_seat.save()
+            booking.trip_seats.add(trip_seat)
 
         return booking

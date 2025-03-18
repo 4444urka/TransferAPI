@@ -2,12 +2,10 @@ import re
 from decimal import Decimal
 from django.db import models
 from django.core.exceptions import ValidationError
-from django.db.models.signals import m2m_changed
-from django.dispatch import receiver
 
 from apps.auth.models import User
 from apps.payment.models import Payment
-from apps.seat.models import Seat
+from apps.seat.models import Seat, TripSeat
 from apps.trip.models import Trip
 from apps.vehicle.models import Vehicle
 from utils.find_street_by_name import find_street_by_name
@@ -54,11 +52,11 @@ class Booking(models.Model):
         verbose_name="Бронирование актуально"
         )
 
-    seats = models.ManyToManyField(
-        Seat,
+    trip_seats = models.ManyToManyField(
+        TripSeat,
         blank=True,
-        verbose_name="Место"
-        )
+        verbose_name="Места в поездке",
+    )
 
     @property
     def total_price(self):
@@ -68,7 +66,10 @@ class Booking(models.Model):
             return Decimal(0)
 
         price = Decimal(0)
-        for seat in self.seats.all():
+        # Получаем все TripSeat для этого бронирования
+        for trip_seat in self.trip_seats.all():
+            # Получаем объект Seat через связь в TripSeat
+            seat = trip_seat.seat
             # TODO: Пока что за переднее место надбавка 20%
             multiplier = Decimal(1.2) if seat.seat_type == "front" else Decimal(1.0)
             price += round(self.trip.default_ticket_price * multiplier)
@@ -161,23 +162,3 @@ class Booking(models.Model):
         self.full_clean()
         # Сохраняем объект
         super().save(*args, **kwargs)
-
-
-@receiver(m2m_changed, sender=Booking.seats.through)
-def update_seat_booking_status(sender, instance, action, pk_set, **kwargs):
-    """Обновляет статус бронирования мест при их добавлении или удалении из бронирования"""
-    if action == "post_add" and pk_set:
-        # Отмечаем места как забронированные после их добавления в бронирование
-        seats = Seat.objects.filter(pk__in=pk_set)
-        for seat in seats:
-            seat.is_booked = True
-            seat.save()
-
-    elif action == "post_remove" and pk_set:
-        # Освобождаем места при удалении из бронирования
-        seats = Seat.objects.filter(pk__in=pk_set)
-        for seat in seats:
-            # Проверяем используется ли место в любом другом активном бронировании
-            if not Booking.objects.filter(seats=seat, is_active=True).exists():
-                seat.is_booked = False
-                seat.save()

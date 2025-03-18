@@ -167,9 +167,9 @@ class BookingViewSet(viewsets.ModelViewSet):
         booking.is_active = False
         booking.save()
 
-        # Освобождаем места (сигнал уже должен это делать, но для надежности)
-        for seat in booking.seats.all():
-            seat.is_booked = False
-            seat.save()
+        # Освобождаем места
+        for trip_seat in booking.trip_seats.all():
+            trip_seat.is_booked = False
+            trip_seat.save()
 
         return Response({"detail": "Бронирование успешно отменено"})

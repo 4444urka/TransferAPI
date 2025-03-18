@@ -6,3 +6,6 @@ class TripConfig(AppConfig):
     name = 'apps.trip'
     label = 'transfer_trip'
     verbose_name = "Поездки"
+
+    def ready(self):
+        import apps.trip.signals

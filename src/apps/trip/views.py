@@ -13,7 +13,9 @@ from django.views.decorators.cache import cache_page
 from django.utils.decorators import method_decorator
 
 from .models import Trip, City
-from .serializers import TripListSerializer, TripDetailSerializer
+from .serializers import TripListSerializer, TripDetailSerializer, TripCreateUpdateSerializer
+from ..seat.models import TripSeat
+
 
 class TripFilter(django_filters.FilterSet):
     min_price = django_filters.NumberFilter(field_name="default_ticket_price", lookup_expr='gte')
@@ -139,9 +141,12 @@ class TripViewSet(viewsets.ModelViewSet):
         return response
 
     def get_serializer_class(self):
-        if self.action == 'retrieve':
+        if self.action in ['create', 'update', 'partial_update']:
+            return TripCreateUpdateSerializer
+        elif self.action == 'retrieve':
             return TripDetailSerializer
-        return TripListSerializer
+        else:
+            return TripListSerializer
 
     def get_permissions(self):
         """
@@ -185,11 +190,12 @@ class TripViewSet(viewsets.ModelViewSet):
     def available_seats(self, request, pk=None):
         """Получение списка свободных мест"""
         trip = self.get_object()
-        seats = trip.vehicle.seat_set.filter(is_booked=False)
+        # Изменяем запрос, чтобы использовать TripSeat
+        trip_seats = TripSeat.objects.filter(trip=trip, is_booked=False).select_related('seat')
         return Response({
             'available_seats': [{
-                'id': seat.id,
-                'number': seat.seat_number,
-                'type': seat.seat_type
-            } for seat in seats]
+                'id': trip_seat.seat.id,
+                'number': trip_seat.seat.seat_number,
+                'type': trip_seat.seat.seat_type
+            } for trip_seat in trip_seats]
         })

@@ -9,6 +9,15 @@ from .models import User
 
 logger = logging.getLogger(__name__)
 
+
+class UserSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = [
+            'id', 'phone_number', 'first_name', 'last_name', 'date_joined'
+            ]
+
+
 class UserRegistrationSerializer(serializers.ModelSerializer):
     class Meta:
         model = User

@@ -1,11 +1,12 @@
 from rest_framework import mixins, viewsets, status
+from rest_framework.permissions import IsAdminUser
 from rest_framework.response import Response
 from rest_framework.decorators import action
 from django.core.cache import cache
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 
-from apps.seat.models import Seat
+from apps.seat.models import Seat, TripSeat
 from apps.seat.serializers import SeatSerializer
 from apps.vehicle.models import Vehicle
 
@@ -29,6 +30,12 @@ class SeatViewSet(mixins.ListModelMixin,
     """
     queryset = Seat.objects.all()  # Восстановленная строка с атрибутом queryset
     serializer_class = SeatSerializer
+
+    def get_permissions(self):
+        """Определение разрешений в зависимости от действия"""
+        if self.action in ['update', 'partial_update']:
+            return [IsAdminUser()]  # Только администраторы могут изменять места
+        return super().get_permissions()
 
     @swagger_auto_schema(
         operation_description="Получение списка всех мест",

@@ -6,3 +6,6 @@ class BookingConfig(AppConfig):
     name = 'apps.booking'
     label = 'transfer_booking'
     verbose_name="Бронирование"
+
+    def ready(self):
+        import apps.booking.signals

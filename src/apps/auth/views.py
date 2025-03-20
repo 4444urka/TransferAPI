@@ -7,6 +7,20 @@ from .models import User
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
 
+class DetailUserView(generics.RetrieveAPIView):
+    serializer_class = UserSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_object(self):
+        return self.request.user
+
+    @swagger_auto_schema(
+        operation_description="Получение информации о пользователе",
+        operation_summary="Информация о пользователе",
+        tags=["Пользователи"]
+    )
+    def get(self, request, *args, **kwargs):
+        return super().get(request, *args, **kwargs)
 
 class UserListView(generics.ListAPIView):
     serializer_class = UserSerializer
@@ -25,7 +39,6 @@ class UserListView(generics.ListAPIView):
         operation_summary="Список пользователей",
         tags=["Пользователи"]
     )
-    
     def get(self, request, *args, **kwargs):
         return super().get(request, *args, **kwargs)
 

@@ -28,29 +28,7 @@ DEBUG = True
 
 ALLOWED_HOSTS = []
 
-LOGGING = {
-    'version': 1,
-    'disable_existing_loggers': False,
-    'formatters': {
-        'with_file': {
-            'format': '%(asctime)s [%(levelname)s] %(filename)s:%(lineno)d %(message)s'
-        },
-    },
-    'handlers': {
-        'console': {
-            'level': 'INFO',
-            'class': 'logging.StreamHandler',
-            'formatter': 'with_file',
-        },
-    },
-    'loggers': {
-        'django': {
-            'handlers': ['console'],
-            'level': 'INFO',
-            'propagate': True,
-        },
-    },
-}
+from .logging import LOGGING
 
 
 # Application definition
@@ -70,6 +48,7 @@ INSTALLED_APPS = [
     'apps.vehicle.apps.VehicleConfig',
     'apps.seat.apps.SeatConfig',
     'apps.payment.apps.PaymentConfig',
+    'apps.monitoring',
 
     # Библиотеки
     'rest_framework',
@@ -145,12 +124,15 @@ DATABASES = {
 # Password validation
 # https://docs.djangoproject.com/en/5.1/ref/settings/#auth-password-validators
 
-AUTH_PASSWORD_VALIDATORS = [
+AUTH_PASSWORD_VALIDATORS = [ # Стандартная валидация
     {
         'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
     },
     {
         'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
+        'OPTIONS': {
+            'min_length': 8,
+        }
     },
     {
         'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',
@@ -215,8 +197,6 @@ SIMPLE_JWT = {
     "SLIDING_TOKEN_OBTAIN_SERIALIZER": "rest_framework_simplejwt.serializers.TokenObtainSlidingSerializer",
     "SLIDING_TOKEN_REFRESH_SERIALIZER": "rest_framework_simplejwt.serializers.TokenRefreshSlidingSerializer",
 }
-
-# В конце файла добавьте следующие настройки:
 
 SWAGGER_SETTINGS = {
     'SECURITY_DEFINITIONS': {

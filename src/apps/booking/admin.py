@@ -36,11 +36,11 @@ class BookingForm(forms.ModelForm):
         """Проверяет всю форму, включая сумму платежа"""
         cleaned_data = super().clean()
         payment = cleaned_data.get('payment')
-        seats = cleaned_data.get('seats')
+        trip_seats = cleaned_data.get('trip_seats')  # Теперь используем trip_seats
         trip = cleaned_data.get('trip')
 
         # Если нет платежа или отсутствуют необходимые данные, вернуть
-        if not payment or not seats or not trip:
+        if not payment or not trip_seats or not trip:
             return cleaned_data
 
         # Расчет цены на основе данных формы
@@ -48,14 +48,15 @@ class BookingForm(forms.ModelForm):
         if self.instance.pk:  # Для существующих бронирований
             calculated_total = self.instance.total_price
         else:  # Для новых бронирований
-            for seat in seats:
+            for trip_seat in trip_seats:
+                seat = trip_seat.seat
                 multiplier = Decimal(1.2) if seat.seat_type == "front" else Decimal(1.0)
                 calculated_total += round(trip.default_ticket_price * multiplier)
 
         # Сравнение округленных значений во избежание проблем с плавающей точкой
         if round(payment.amount, 2) != round(calculated_total, 2):
             self.add_error('payment',
-                f"Сумма платежа ({payment.amount}) не соответствует общей стоимости ({calculated_total})")
+                           f"Сумма платежа ({payment.amount}) не соответствует общей стоимости ({calculated_total})")
 
         return cleaned_data
 

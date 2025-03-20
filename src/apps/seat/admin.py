@@ -1,51 +1,59 @@
 from django.contrib import admin
+from apps.seat.models import Seat, TripSeat
 
-from apps.seat.models import Seat
 
-
+@admin.register(Seat)
 class SeatAdmin(admin.ModelAdmin):
-    list_display = ('seat_number', 'vehicle', 'seat_type', 'is_booked')
-    list_filter = ('vehicle', 'seat_type', 'is_booked')
+    list_display = ('formatted_seat_number', 'vehicle', 'formatted_seat_type')
+    list_filter = ('vehicle', 'seat_type')
     search_fields = ('vehicle__license_plate', 'seat_number')
     ordering = ('vehicle', 'seat_number')
-    
-    list_per_page = 20 
-    
+
+    list_per_page = 20
+
+    # Убираем booking_status из отображаемых полей
     def get_list_display(self, request):
         return (
             'formatted_seat_number',
-            'vehicle_info',
-            'formatted_seat_type',
-            'booking_status'
+            'vehicle',
+            'formatted_seat_type'
         )
-    
+
     def formatted_seat_number(self, obj):
         """Форматированный номер места"""
         return f"Место {obj.seat_number}"
+
     formatted_seat_number.short_description = "Номер"
     formatted_seat_number.admin_order_field = 'seat_number'
 
     def vehicle_info(self, obj):
         """Информация о транспорте"""
         return f"{obj.vehicle.vehicle_type} - {obj.vehicle.license_plate}"
+
     vehicle_info.short_description = "Транспорт"
     vehicle_info.admin_order_field = 'vehicle__license_plate'
 
     def formatted_seat_type(self, obj):
         """Тип места с красивым форматированием"""
         return obj.get_seat_type_display()
+
     formatted_seat_type.short_description = "Тип места"
     formatted_seat_type.admin_order_field = 'seat_type'
 
-    def booking_status(self, obj):
-        """Статус бронирования с цветовым индикатором"""
-        if obj.is_booked:
-            return "Занято"
-        return "Свободно"
-    booking_status.short_description = "Статус"
-    booking_status.admin_order_field = 'is_booked'
-
     def has_delete_permission(self, request, obj=None):
-        return False  # Запрещает удаление через админку
+        """Запрещает удаление мест через админку напрямую"""
+        return False
 
-admin.site.register(Seat, SeatAdmin)
+
+@admin.register(TripSeat)
+class TripSeatAdmin(admin.ModelAdmin):
+    list_display = ('id', 'trip', 'seat_info', 'is_booked')
+    list_filter = ('trip', 'is_booked')
+    search_fields = ('trip__id', 'seat__seat_number')
+    raw_id_fields = ('trip', 'seat')
+
+    def seat_info(self, obj):
+        """Информация о месте"""
+        return f"{obj.seat.vehicle.license_plate} - Место {obj.seat.seat_number} ({obj.seat.get_seat_type_display()})"
+
+    seat_info.short_description = "Место"

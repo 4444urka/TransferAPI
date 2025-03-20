@@ -13,7 +13,9 @@ from django.views.decorators.cache import cache_page
 from django.utils.decorators import method_decorator
 
 from .models import Trip, City
-from .serializers import TripListSerializer, TripDetailSerializer
+from .serializers import TripListSerializer, TripDetailSerializer, TripCreateUpdateSerializer
+from ..seat.models import TripSeat
+
 
 class TripFilter(django_filters.FilterSet):
     min_price = django_filters.NumberFilter(field_name="default_ticket_price", lookup_expr='gte')
@@ -21,7 +23,18 @@ class TripFilter(django_filters.FilterSet):
     date = django_filters.DateFilter(field_name="departure_time", lookup_expr='date')
     departure_after = django_filters.DateTimeFilter(field_name="departure_time", lookup_expr='gte')
     departure_before = django_filters.DateTimeFilter(field_name="departure_time", lookup_expr='lte')
+    current = django_filters.BooleanFilter(method='filter_current', label='Актуальные поездки')
     
+    def filter_current(self, queryset, name, value):
+        """
+        Если current=true, то возвращаем только поездки, у которых время прибытия больше или равно текущему.
+        Иначе возвращаем весь queryset без дополнительной фильтрации.
+        """
+        if value:
+            now = timezone.now()
+            return queryset.filter(arrival_time__gte=now)
+        return queryset
+
     class Meta:
         model = Trip
         fields = {
@@ -80,7 +93,10 @@ class TripViewSet(viewsets.ModelViewSet):
                               type=openapi.TYPE_STRING),
             openapi.Parameter('ordering', openapi.IN_QUERY,
                               description="Поле для сортировки (departure_time, -departure_time, default_ticket_price, -default_ticket_price, arrival_time, -arrival_time)",
-                              type=openapi.TYPE_STRING)
+                              type=openapi.TYPE_STRING),
+            openapi.Parameter('current', openapi.IN_QUERY, 
+                              description="Флаг для фильтрации актуальных поездок (true/false). Если true, возвращаются только поездки, у которых departure_time >= текущему времени.",
+                              type=openapi.TYPE_BOOLEAN),
         ],
         tags=["Поездки"]
     )
@@ -139,9 +155,12 @@ class TripViewSet(viewsets.ModelViewSet):
         return response
 
     def get_serializer_class(self):
-        if self.action == 'retrieve':
+        if self.action in ['create', 'update', 'partial_update']:
+            return TripCreateUpdateSerializer
+        elif self.action == 'retrieve':
             return TripDetailSerializer
-        return TripListSerializer
+        else:
+            return TripListSerializer
 
     def get_permissions(self):
         """
@@ -185,11 +204,12 @@ class TripViewSet(viewsets.ModelViewSet):
     def available_seats(self, request, pk=None):
         """Получение списка свободных мест"""
         trip = self.get_object()
-        seats = trip.vehicle.seat_set.filter(is_booked=False)
+        # Изменяем запрос, чтобы использовать TripSeat
+        trip_seats = TripSeat.objects.filter(trip=trip, is_booked=False).select_related('seat')
         return Response({
             'available_seats': [{
-                'id': seat.id,
-                'number': seat.seat_number,
-                'type': seat.seat_type
-            } for seat in seats]
+                'id': trip_seat.seat.id,
+                'number': trip_seat.seat.seat_number,
+                'type': trip_seat.seat.seat_type
+            } for trip_seat in trip_seats]
         })

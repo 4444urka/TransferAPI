@@ -1,6 +1,7 @@
 from rest_framework.test import APITestCase
 from rest_framework import status
 from django.urls import reverse
+from apps.auth.models import User
 
 class RegistrationUserTest(APITestCase):
     def setUp(self):
@@ -94,3 +95,128 @@ class TokenUserTest(APITestCase):
     def test_refresh_token_invalid(self):
         response = self.client.post(self.token_refresh_url, {'refresh': 'invalidtoken'}, format='json')
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+class UserListTest(APITestCase):
+    """
+    Тесты для проверки эндпоинта /auth/users/.
+    Обычный пользователь должен получать только свои данные,
+    а администратор – список всех пользователей.
+    """
+    def setUp(self):
+        self.admin_phone = "+79147282571"
+        self.user_phone = "+79223334455"
+        self.password = "testpassword123."
+
+        # Создаем администратора напрямую через модель
+        self.admin = User.objects.create_superuser(
+            phone_number=self.admin_phone,
+            password=self.password,
+            first_name="Admin",
+            last_name="User"
+        )
+
+        # Создаем обычного пользователя через эндпоинт регистрации
+        response = self.client.post('/auth/register/', {
+            'phone_number': self.user_phone, 
+            'password': self.password,
+            'first_name': 'Normal',
+            'last_name': 'User'
+        }, format='json')
+        self.assertEqual(response.status_code, 201)
+
+        # Получаем токены для обоих пользователей
+        self.admin_token = self.client.post(reverse('token_obtain_pair'), {
+            'phone_number': self.admin_phone,
+            'password': self.password
+        }, format='json').data.get('access')
+
+        self.user_token = self.client.post(reverse('token_obtain_pair'), {
+            'phone_number': self.user_phone,
+            'password': self.password
+        }, format='json').data.get('access')
+
+        self.users_url = "/auth/users/"
+
+    def test_users_route_unauthenticated(self):
+        response = self.client.get(self.users_url)
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_users_route_normal_user(self):
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.user_token}')
+        response = self.client.get(self.users_url)
+        # Если используется пагинация, данные находятся в 'results'
+        users = response.data.get('results', response.data)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIsInstance(users, list)
+        # Обычный пользователь должен видеть только свою запись
+        self.assertEqual(len(users), 1)
+        self.assertEqual(users[0]['phone_number'], self.user_phone)
+
+    def test_users_route_admin_user(self):
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.admin_token}')
+        response = self.client.get(self.users_url)
+        users = response.data.get('results', response.data)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIsInstance(users, list)
+        # Администратор должен видеть как минимум две записи (его и обычного пользователя)
+        self.assertGreaterEqual(len(users), 2)
+        phones = [user['phone_number'] for user in users]
+        self.assertIn(self.admin_phone, phones)
+        self.assertIn(self.user_phone, phones)
+
+class UserDetailTest(APITestCase):
+    """
+    Тесты для проверки эндпоинта /auth/users/get_user_info.
+    Обычный пользователь должен получать только свои данные,
+    а администратор – данные любого пользователя.
+    """
+    def setUp(self):
+        self.admin_phone = "+79147282571"
+        self.user_phone = "+79223334455"
+        self.password = "testpassword123."
+
+        # Создаем администратора напрямую через модель
+        self.admin = User.objects.create_superuser(
+            phone_number=self.admin_phone,
+            password=self.password,
+            first_name="Admin",
+            last_name="User"
+        )
+
+        # Создаем обычного пользователя через эндпоинт регистрации
+        response = self.client.post('/auth/register/', {
+            'phone_number': self.user_phone,
+            'password': self.password,
+            'first_name': 'Normal',
+            'last_name': 'User'
+        }, format='json')
+        self.assertEqual(response.status_code, 201)
+
+        # Получаем токены для обоих пользователей
+        self.admin_token = self.client.post(reverse('token_obtain_pair'), {
+            'phone_number': self.admin_phone,
+            'password': self.password
+        }, format='json').data.get('access')
+
+        self.user_token = self.client.post(reverse('token_obtain_pair'), {
+            'phone_number': self.user_phone,
+            'password': self.password
+        }, format='json').data.get('access')
+
+        self.user_detail_url = "/auth/users/get_user_info"
+
+    def test_user_detail_route_unauthenticated(self):
+        response = self.client.get(self.user_detail_url)
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_user_detail_route_normal_user(self):
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.user_token}')
+        response = self.client.get(self.user_detail_url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        user = response.data
+        self.assertEqual(user['phone_number'], self.user_phone)
+
+    def test_user_detail_route_admin_user(self):
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.admin_token}')
+        response = self.client.get(self.user_detail_url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)

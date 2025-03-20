@@ -2,18 +2,26 @@ import psutil
 import logging
 from rest_framework.views import APIView
 from rest_framework.response import Response
+from rest_framework.permissions import IsAdminUser
 from django.core.cache import cache
 from django.db import connection
 from django.conf import settings
 
 logger = logging.getLogger('monitoring')
 
+class IsSuperUser(IsAdminUser):
+    """
+    Разрешает доступ только суперпользователям
+    """
+    def has_permission(self, request, view):
+        return bool(request.user and request.user.is_superuser)
+
+
 class SystemHealthView(APIView):
     """
     Проверка состояния системы и сервисов
     """
-    authentication_classes = []
-    permission_classes = []
+    permission_classes = [IsSuperUser]
 
     def get(self, request):
         data = {
@@ -25,7 +33,7 @@ class SystemHealthView(APIView):
     def _check_services(self):
         services = {}
         
-        # Проверка PostgreSQL
+        # PostgreSQL
         try:
             with connection.cursor() as cursor:
                 cursor.execute("SELECT 1")
@@ -36,7 +44,7 @@ class SystemHealthView(APIView):
         except Exception as e:
             services['postgresql'] = {'status': 'down', 'error': str(e)}
 
-        # Проверка Redis
+        # Redis
         try:
             cache.set('health_check', 'ok', timeout=1)
             cache_value = cache.get('health_check')
@@ -93,15 +101,14 @@ class SystemHealthView(APIView):
             return None
 
     def _bytes_to_mb(self, bytes_value):
-        return round(bytes_value / (1024 * 1024), 2)  # конвертация в МБ
+        return round(bytes_value / (1024 * 1024), 2)  # Конвертация в МБ
 
 
 class ModuleHealthView(APIView):
     """
     Проверка состояния отдельных модулей приложения
     """
-    authentication_classes = []
-    permission_classes = []
+    permission_classes = [IsSuperUser]
 
     def get(self, request):
         modules = {
@@ -142,4 +149,4 @@ class ModuleHealthView(APIView):
             return {
                 'status': 'down',
                 'error': str(e)
-            } 
+            }

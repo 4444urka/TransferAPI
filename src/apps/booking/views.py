@@ -6,20 +6,10 @@ from rest_framework.response import Response
 from django_filters.rest_framework import DjangoFilterBackend
 
 from .models import Booking
+from .permissions import HasBookingPermission
 from .serializers import BookingSerializer, BookingDetailSerializer
 from apps.seat.models import Seat
 from apps.payment.models import Payment
-
-
-class IsOwnerOrAdmin(permissions.BasePermission):
-    """
-    Пользователь может видеть только свои бронирования,
-    кроме администраторов, которые видят всё
-    """
-
-    def has_object_permission(self, request, view, obj):
-        return request.user.is_staff or obj.user == request.user
-
 
 class BookingViewSet(viewsets.ModelViewSet):
     """
@@ -29,7 +19,7 @@ class BookingViewSet(viewsets.ModelViewSet):
     Администраторы имеют доступ ко всем бронированиям.
     """
     serializer_class = BookingSerializer
-    permission_classes = [permissions.IsAuthenticated, IsOwnerOrAdmin]
+    permission_classes = [permissions.IsAuthenticated, HasBookingPermission]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ['is_active', 'trip']
     search_fields = ['trip__origin__name', 'trip__destination__name']
@@ -106,15 +96,20 @@ class BookingViewSet(viewsets.ModelViewSet):
         return super().destroy(request, *args, **kwargs)
 
     def get_queryset(self):
-        """Пользователи видят только свои бронирования, администраторы - все"""
+        """
+        Фильтрация бронирований:
+        - Обычные пользователи видят только свои бронирования
+        - Пользователи с разрешением 'can_view_all_booking' или администраторы видят все
+        """
         # Проверяем, вызывается ли метод для генерации схемы Swagger
         if getattr(self, 'swagger_fake_view', False):
-            # Для генерации схемы возвращаем базовый queryset без фильтрации
             return Booking.objects.none()
 
-        # Обычная логика для реальных запросов
-        if self.request.user.is_staff:
+        # Администраторы или пользователи с правом просмотра всех бронирований
+        if self.request.user.is_superuser or self.request.user.has_perm('booking.can_view_all_booking'):
             return Booking.objects.all()
+
+        # Обычные пользователи видят только свои бронирования
         return Booking.objects.filter(user=self.request.user)
 
     def get_serializer_class(self):

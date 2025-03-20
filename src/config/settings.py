@@ -28,29 +28,7 @@ DEBUG = True
 
 ALLOWED_HOSTS = []
 
-LOGGING = {
-    'version': 1,
-    'disable_existing_loggers': False,
-    'formatters': {
-        'with_file': {
-            'format': '%(asctime)s [%(levelname)s] %(filename)s:%(lineno)d %(message)s'
-        },
-    },
-    'handlers': {
-        'console': {
-            'level': 'INFO',
-            'class': 'logging.StreamHandler',
-            'formatter': 'with_file',
-        },
-    },
-    'loggers': {
-        'django': {
-            'handlers': ['console'],
-            'level': 'INFO',
-            'propagate': True,
-        },
-    },
-}
+from .logging import LOGGING
 
 
 # Application definition
@@ -70,6 +48,7 @@ INSTALLED_APPS = [
     'apps.vehicle.apps.VehicleConfig',
     'apps.seat.apps.SeatConfig',
     'apps.payment.apps.PaymentConfig',
+    'apps.monitoring',
 
     # Библиотеки
     'rest_framework',

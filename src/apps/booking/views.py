@@ -1,15 +1,14 @@
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
-from rest_framework import viewsets, permissions, filters, status
+from rest_framework import viewsets, filters, status
 from rest_framework.decorators import action
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from django_filters.rest_framework import DjangoFilterBackend
 
 from .models import Booking
 from .permissions import HasBookingPermission
 from .serializers import BookingSerializer, BookingDetailSerializer
-from apps.seat.models import Seat
-from apps.payment.models import Payment
 
 class BookingViewSet(viewsets.ModelViewSet):
     """
@@ -19,7 +18,7 @@ class BookingViewSet(viewsets.ModelViewSet):
     Администраторы имеют доступ ко всем бронированиям.
     """
     serializer_class = BookingSerializer
-    permission_classes = [permissions.IsAuthenticated, HasBookingPermission]
+    permission_classes = [IsAuthenticated, HasBookingPermission]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ['is_active', 'trip']
     search_fields = ['trip__origin__name', 'trip__destination__name']

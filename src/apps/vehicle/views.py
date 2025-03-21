@@ -9,18 +9,9 @@ from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.filters import SearchFilter, OrderingFilter
 
 from apps.vehicle.models import Vehicle
+from apps.vehicle.permissions import HasVehiclePermission
 from apps.vehicle.serializers import VehicleSerializer, VehicleDetailSerializer
 from apps.trip.models import Trip
-
-
-class IsAdminOrReadOnly(permissions.BasePermission):
-    """
-    Разрешает чтение всем пользователям, но только администраторам разрешает изменение.
-    """
-    def has_permission(self, request, view):
-        if request.method in permissions.SAFE_METHODS:
-            return True
-        return request.user and request.user.is_staff
 
 
 class VehicleViewSet(viewsets.ModelViewSet):
@@ -28,13 +19,17 @@ class VehicleViewSet(viewsets.ModelViewSet):
     ViewSet для управления транспортными средствами.
     """
     queryset = Vehicle.objects.all()
-    permission_classes = [permissions.IsAuthenticated, IsAdminOrReadOnly]
+    permission_classes = [HasVehiclePermission]
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     filterset_fields = ['vehicle_type', 'is_comfort', 'air_conditioning', 'allows_pets']
     search_fields = ['license_plate']
     ordering_fields = ['created_at', 'total_seats']
     ordering = ['-created_at']
     pagination_class = None
+
+    # Получаем пермишены
+    def get_permissions(self):
+        return [HasVehiclePermission()]
 
 
     @swagger_auto_schema(

@@ -7,6 +7,7 @@ from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 
 from apps.seat.models import Seat, TripSeat
+from apps.seat.permissions import HasSeatPermission
 from apps.seat.serializers import SeatSerializer
 from apps.vehicle.models import Vehicle
 
@@ -31,11 +32,9 @@ class SeatViewSet(mixins.ListModelMixin,
     queryset = Seat.objects.all()  # Восстановленная строка с атрибутом queryset
     serializer_class = SeatSerializer
 
+    # Получаем пермишеки 😘
     def get_permissions(self):
-        """Определение разрешений в зависимости от действия"""
-        if self.action in ['update', 'partial_update']:
-            return [IsAdminUser()]  # Только администраторы могут изменять места
-        return super().get_permissions()
+        return [HasSeatPermission()]
 
     @swagger_auto_schema(
         operation_description="Получение списка всех мест",

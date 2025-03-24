@@ -38,6 +38,9 @@ def release_seats_on_booking_delete(sender, instance, **kwargs):
 
 @receiver(pre_save, sender=Booking)
 def release_seats_on_deactivation(sender, instance, **kwargs):
+    """
+    Освобождает места при деактивации бронирования
+    """
     # Проверяем, что это существующий объект бронирования
     if instance.pk:
         # Получаем предыдущее состояние объекта
@@ -46,8 +49,8 @@ def release_seats_on_deactivation(sender, instance, **kwargs):
             # Если бронирование становится неактивным
             if previous.is_active and not instance.is_active:
                 # Освобождаем места
-                for seat in instance.seats.all():
-                    seat.is_booked = False
-                    seat.save()
+                for trip_seat in instance.trip_seats.all():
+                    trip_seat.is_booked = False
+                    trip_seat.save()
         except Booking.DoesNotExist:
             pass

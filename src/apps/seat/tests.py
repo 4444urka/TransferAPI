@@ -1,3 +1,5 @@
+from django.contrib.auth.models import Permission, Group
+from django.contrib.contenttypes.models import ContentType
 from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
@@ -247,6 +249,7 @@ class SeatAPITest(APITestCase):
 
         # Клиент для авторизованных запросов
         self.client = APIClient()
+        self.client.force_authenticate(user=self.regular_user)
 
     def test_list_seats(self):
         """Тест получения списка всех мест"""
@@ -456,3 +459,207 @@ class SeatTypeConstraintTest(TestCase):
         seat.save()
         seat.refresh_from_db()
         self.assertEqual(seat.seat_type, 'middle')
+
+
+class SeatPermissionTest(APITestCase):
+    """Тесты для проверки разрешений на места"""
+
+    def setUp(self):
+        """Настройка тестовых данных"""
+        # Создаем пользователей с разными ролями
+        self.admin_user = User.objects.create_superuser('+79111111111', 'adminpass')
+        self.manager_user = User.objects.create_user('+79222222222', 'managerpass')
+        self.regular_user = User.objects.create_user('+79333333333', 'userpass')
+
+        # Создаем группу менеджеров с правами на операции с местами
+        self.manager_group, _ = Group.objects.get_or_create(name='Менеджеры мест')
+
+        # Получаем или создаем права для мест
+        content_type = ContentType.objects.get_for_model(Seat)
+
+        update_seat_perm, _ = Permission.objects.get_or_create(
+            codename='can_update_seat',
+            name='Может изменять места',
+            content_type=content_type,
+        )
+
+        # Добавляем разрешения к группе менеджеров
+        self.manager_group.permissions.add(update_seat_perm)
+
+        # Добавляем пользователя в группу менеджеров
+        self.manager_user.groups.add(self.manager_group)
+
+        # Создаем транспортное средство с местами
+        self.vehicle = Vehicle.objects.create(
+            vehicle_type='bus',
+            license_plate='А123АА',
+            total_seats=10,
+            is_comfort=True,
+            air_conditioning=True,
+            allows_pets=False
+        )
+
+        # Получаем места для тестов
+        self.seats = Seat.objects.filter(vehicle=self.vehicle)
+        self.seat1 = self.seats.order_by('seat_number').first()
+        self.seat2 = self.seats.order_by('seat_number')[1]
+
+        # Создаем поездку для тестирования TripSeat
+        self.origin = City.objects.create(name='Москва')
+        self.destination = City.objects.create(name='Санкт-Петербург')
+
+        self.trip = Trip.objects.create(
+            vehicle=self.vehicle,
+            origin=self.origin,
+            destination=self.destination,
+            departure_time=timezone.now() + timedelta(days=1),
+            arrival_time=timezone.now() + timedelta(days=1, hours=5),
+            default_ticket_price=Decimal('1000.00')
+        )
+
+        # Получаем TripSeat
+        self.trip_seats = TripSeat.objects.filter(trip=self.trip)
+
+        # URL для тестов
+        self.seat_list_url = reverse('seat-list')
+        self.seat1_detail_url = reverse('seat-detail', args=[self.seat1.id])
+        self.seats_by_vehicle_url = reverse('seat-get-seats-by-vehicle', args=[self.vehicle.id])
+
+        # Клиент для запросов
+        self.client = APIClient()
+
+    def test_list_seats_as_anonymous(self):
+        """Тест запрета доступа к списку мест для анонимного пользователя"""
+        response = self.client.get(self.seat_list_url)
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_list_seats_as_authenticated(self):
+        """Тест доступа к списку мест для аутентифицированного пользователя"""
+        self.client.force_authenticate(user=self.regular_user)
+        response = self.client.get(self.seat_list_url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def test_retrieve_seat_as_anonymous(self):
+        """Тест запрета доступа к просмотру места для анонимного пользователя"""
+        response = self.client.get(self.seat1_detail_url)
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_retrieve_seat_as_authenticated(self):
+        """Тест доступа к просмотру места для аутентифицированного пользователя"""
+        self.client.force_authenticate(user=self.regular_user)
+        response = self.client.get(self.seat1_detail_url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['id'], self.seat1.id)
+
+    def test_create_seat_as_admin(self):
+        """Тест запрета создания места через API (даже для администратора)"""
+        self.client.force_authenticate(user=self.admin_user)
+
+        data = {
+            "vehicle": self.vehicle.id,
+            "seat_number": 100,
+            "seat_type": "back"
+        }
+
+        response = self.client.post(self.seat_list_url, data)
+        self.assertEqual(response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
+
+    def test_update_seat_as_regular_user(self):
+        """Тест запрета обновления места обычным пользователем"""
+        self.client.force_authenticate(user=self.regular_user)
+
+        data = {
+            "seat_type": "middle"
+        }
+
+        response = self.client.patch(self.seat1_detail_url, data)
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+        # Проверяем, что место не изменилось
+        self.seat1.refresh_from_db()
+        self.assertNotEqual(self.seat1.seat_type, "middle")
+
+    def test_update_seat_as_manager(self):
+        """Тест обновления места менеджером с правом обновления"""
+        self.client.force_authenticate(user=self.manager_user)
+
+        data = {
+            "seat_type": "middle"
+        }
+
+        response = self.client.patch(self.seat1_detail_url, data)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        # Проверяем, что тип места действительно изменился
+        self.seat1.refresh_from_db()
+        self.assertEqual(self.seat1.seat_type, "middle")
+
+    def test_update_seat_as_admin(self):
+        """Тест обновления места администратором"""
+        self.client.force_authenticate(user=self.admin_user)
+
+        data = {
+            "seat_type": "middle"
+        }
+
+        response = self.client.patch(self.seat1_detail_url, data)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        # Проверяем, что тип места действительно изменился
+        self.seat1.refresh_from_db()
+        self.assertEqual(self.seat1.seat_type, "middle")
+
+    def test_delete_seat_as_admin(self):
+        """Тест запрета удаления места через API (даже для администратора)"""
+        self.client.force_authenticate(user=self.admin_user)
+        response = self.client.delete(self.seat1_detail_url)
+        self.assertEqual(response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
+
+        # Проверяем, что место не удалилось
+        self.assertTrue(Seat.objects.filter(id=self.seat1.id).exists())
+
+    def test_get_seats_by_vehicle_as_anonymous(self):
+        """Тест запрета доступа к списку мест для конкретного ТС для анонимного пользователя"""
+        response = self.client.get(self.seats_by_vehicle_url)
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_get_seats_by_vehicle_as_authenticated(self):
+        """Тест доступа к списку мест для конкретного ТС для аутентифицированного пользователя"""
+        self.client.force_authenticate(user=self.regular_user)
+        response = self.client.get(self.seats_by_vehicle_url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        # Проверяем, что все места относятся к правильному транспортному средству
+        vehicle_ids = set(seat['vehicle'] for seat in response.data)
+        self.assertEqual(len(vehicle_ids), 1)
+        self.assertEqual(list(vehicle_ids)[0], self.vehicle.id)
+
+    def test_role_permissions_consistency(self):
+        """Тест последовательности назначения и отзыва прав через группы"""
+        # Создаем нового пользователя и проверяем отсутствие прав
+        test_user = User.objects.create_user('+79555555555', 'testpass')
+        self.client.force_authenticate(user=test_user)
+
+        data = {
+            "seat_type": "middle"
+        }
+
+        response = self.client.patch(self.seat1_detail_url, data)
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+        # Добавляем пользователя в группу менеджеров
+        test_user.groups.add(self.manager_group)
+
+        # Теперь пользователь должен иметь право обновлять места
+        response = self.client.patch(self.seat1_detail_url, data)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        # Удаляем пользователя из группы менеджеров
+        test_user.groups.remove(self.manager_group)
+
+        # Снова должен быть запрещен доступ
+        data = {
+            "seat_type": "back"
+        }
+        response = self.client.patch(self.seat1_detail_url, data)
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)

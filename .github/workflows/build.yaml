@@ -33,23 +33,6 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
-
-      - name: Cache Docker layers
-        uses: actions/cache@v3
-        with:
-          path: /tmp/.buildx-cache
-          key: ${{ runner.os }}-buildx-${{ github.sha }}
-          restore-keys: |
-            ${{ runner.os }}-buildx-
-
-      - name: Start services
-        run: docker compose up -d
-
-      - name: Wait for services to start
-        run: sleep 10
-
       - name: Create migrations
         run: docker compose exec -T web python src/manage.py makemigrations
 

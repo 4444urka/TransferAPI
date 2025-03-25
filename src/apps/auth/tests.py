@@ -13,7 +13,7 @@ class RegistrationUserTest(APITestCase):
         response = self.client.post('/auth/register/',
                                     {'phone_number': '+79147282571', 'password': self.test_password},
                                     format='json')
-        self.assertEqual(response.status_code, 401)
+        self.assertEqual(response.status_code, 201)
 
     def test_create_user_with_existing_phone_number(self):
         self.client.post('/auth/register/',

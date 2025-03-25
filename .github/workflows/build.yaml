@@ -27,7 +27,7 @@ jobs:
             ${{ runner.os }}-buildx-
 
       - name: Build Docker Compose services
-        run: docker-compose build
+        run: docker compose build
 
   test:
     name: Run Tests
@@ -47,17 +47,17 @@ jobs:
             ${{ runner.os }}-buildx-
 
       - name: Start services
-        run: docker-compose up -d
+        run: docker compose up -d
 
       - name: Wait for services to start
         run: sleep 10
 
       - name: Run migrations
-        run: docker-compose exec -T web python src/manage.py migrate
+        run: docker compose exec -T web python src/manage.py migrate
 
       - name: Run tests
-        run: docker-compose exec -T web python src/manage.py test
+        run: docker compose exec -T web python src/manage.py test
 
       - name: Stop services
         if: always()
-        run: docker-compose down
+        run: docker compose down

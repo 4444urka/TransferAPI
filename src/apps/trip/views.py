@@ -1,50 +1,20 @@
-from django.shortcuts import render
-from django.utils import timezone
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
-from rest_framework import viewsets, filters, status
+from rest_framework import viewsets, filters
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated, IsAdminUser, AllowAny
+from rest_framework.permissions import IsAuthenticated
 from django_filters import rest_framework as django_filters
-from datetime import datetime
 from django.core.cache import cache
 from django.views.decorators.cache import cache_page
 from django.utils.decorators import method_decorator
 
+from .filters import TripFilter
 from .models import Trip, City
+from .permissions import HasTripPermission
 from .serializers import TripListSerializer, TripDetailSerializer, TripCreateUpdateSerializer
 from ..seat.models import TripSeat
 
-
-class TripFilter(django_filters.FilterSet):
-    min_price = django_filters.NumberFilter(field_name="default_ticket_price", lookup_expr='gte')
-    max_price = django_filters.NumberFilter(field_name="default_ticket_price", lookup_expr='lte')
-    date = django_filters.DateFilter(field_name="departure_time", lookup_expr='date')
-    departure_after = django_filters.DateTimeFilter(field_name="departure_time", lookup_expr='gte')
-    departure_before = django_filters.DateTimeFilter(field_name="departure_time", lookup_expr='lte')
-    current = django_filters.BooleanFilter(method='filter_current', label='Актуальные поездки')
-    
-    def filter_current(self, queryset, name, value):
-        """
-        Если current=true, то возвращаем только поездки, у которых время прибытия больше или равно текущему.
-        Иначе возвращаем весь queryset без дополнительной фильтрации.
-        """
-        if value:
-            now = timezone.now()
-            return queryset.filter(arrival_time__gte=now)
-        return queryset
-
-    class Meta:
-        model = Trip
-        fields = {
-            'origin': ['exact'],
-            'destination': ['exact'],
-            'vehicle__vehicle_type': ['exact'],
-            'vehicle__is_comfort': ['exact'],
-            'vehicle__air_conditioning': ['exact'],
-            'vehicle__allows_pets': ['exact'],
-        }
 
 class TripViewSet(viewsets.ModelViewSet):
     """
@@ -64,6 +34,7 @@ class TripViewSet(viewsets.ModelViewSet):
     ]
     filterset_class = TripFilter
     search_fields = ['origin__name', 'destination__name']
+    permission_classes = [IsAuthenticated, HasTripPermission]
     ordering_fields = ['departure_time', 'arrival_time', 'default_ticket_price']
     ordering = ['departure_time']
 
@@ -164,14 +135,11 @@ class TripViewSet(viewsets.ModelViewSet):
 
     def get_permissions(self):
         """
+        Определяет разрешения для различных действий:
         - Просмотр доступен всем
-        - Создание/изменение/удаление только админам
+        - Создание/изменение/удаление требуют соответствующих прав
         """
-        if self.action in ['create', 'update', 'partial_update', 'destroy']:
-            permission_classes = [IsAdminUser]
-        else:
-            permission_classes = [AllowAny]
-        return [permission() for permission in permission_classes]
+        return [HasTripPermission()]
 
     def get_queryset(self): # сюда можно добавлять фильтрации
         """Базовая фильтрация"""

@@ -1,25 +1,14 @@
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
-from rest_framework import viewsets, permissions, filters, status
+from rest_framework import viewsets, filters, status
 from rest_framework.decorators import action
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from django_filters.rest_framework import DjangoFilterBackend
 
 from .models import Booking
+from .permissions import HasBookingPermission
 from .serializers import BookingSerializer, BookingDetailSerializer
-from apps.seat.models import Seat
-from apps.payment.models import Payment
-
-
-class IsOwnerOrAdmin(permissions.BasePermission):
-    """
-    Пользователь может видеть только свои бронирования,
-    кроме администраторов, которые видят всё
-    """
-
-    def has_object_permission(self, request, view, obj):
-        return request.user.is_staff or obj.user == request.user
-
 
 class BookingViewSet(viewsets.ModelViewSet):
     """
@@ -29,7 +18,7 @@ class BookingViewSet(viewsets.ModelViewSet):
     Администраторы имеют доступ ко всем бронированиям.
     """
     serializer_class = BookingSerializer
-    permission_classes = [permissions.IsAuthenticated, IsOwnerOrAdmin]
+    permission_classes = [IsAuthenticated, HasBookingPermission]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ['is_active', 'trip']
     search_fields = ['trip__origin__name', 'trip__destination__name']
@@ -67,11 +56,11 @@ class BookingViewSet(viewsets.ModelViewSet):
         operation_summary="Создание бронирования",
         request_body=openapi.Schema(
             type=openapi.TYPE_OBJECT,
-            required=['trip_id', 'seats_ids', 'pickup_location', 'dropoff_location'],
+            required=['trip_id', 'seat_numbers', 'pickup_location', 'dropoff_location'],
             properties={
                 'trip_id': openapi.Schema(type=openapi.TYPE_INTEGER, description='ID поездки'),
-                'seats_ids': openapi.Schema(type=openapi.TYPE_ARRAY, items=openapi.Items(type=openapi.TYPE_INTEGER),
-                                            description='Массив ID мест для бронирования'),
+                'seat_numbers': openapi.Schema(type=openapi.TYPE_ARRAY, items=openapi.Items(type=openapi.TYPE_INTEGER),
+                                            description='Массив номеров мест для бронирования'),
                 'pickup_location': openapi.Schema(type=openapi.TYPE_STRING, description='Адрес посадки'),
                 'dropoff_location': openapi.Schema(type=openapi.TYPE_STRING, description='Адрес высадки')
             }
@@ -106,15 +95,20 @@ class BookingViewSet(viewsets.ModelViewSet):
         return super().destroy(request, *args, **kwargs)
 
     def get_queryset(self):
-        """Пользователи видят только свои бронирования, администраторы - все"""
+        """
+        Фильтрация бронирований:
+        - Обычные пользователи видят только свои бронирования
+        - Пользователи с разрешением 'can_view_all_booking' или администраторы видят все
+        """
         # Проверяем, вызывается ли метод для генерации схемы Swagger
         if getattr(self, 'swagger_fake_view', False):
-            # Для генерации схемы возвращаем базовый queryset без фильтрации
             return Booking.objects.none()
 
-        # Обычная логика для реальных запросов
-        if self.request.user.is_staff:
+        # Администраторы или пользователи с правом просмотра всех бронирований
+        if self.request.user.is_superuser or self.request.user.has_perm('booking.can_view_all_booking'):
             return Booking.objects.all()
+
+        # Обычные пользователи видят только свои бронирования
         return Booking.objects.filter(user=self.request.user)
 
     def get_serializer_class(self):

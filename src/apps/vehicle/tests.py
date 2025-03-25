@@ -1,3 +1,5 @@
+from django.contrib.auth.models import Group, Permission
+from django.contrib.contenttypes.models import ContentType
 from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
@@ -311,6 +313,7 @@ class VehicleAPITest(APITestCase):
 
         # Клиент для запросов
         self.client = APIClient()
+        self.client.force_authenticate(user=self.regular_user)
 
     def test_list_vehicles(self):
         """Тест получения списка транспортных средств (доступно всем авторизованным)"""
@@ -322,11 +325,6 @@ class VehicleAPITest(APITestCase):
 
         # Проверяем, что в ответе три транспортных средства
         self.assertEqual(len(response.data), 3)
-
-    def test_list_vehicles_unauthorized(self):
-        """Тест доступа к списку транспортных средств без авторизации"""
-        response = self.client.get(self.vehicle_list_url)
-        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
     def test_retrieve_vehicle(self):
         """Тест получения информации о конкретном транспортном средстве"""
@@ -560,3 +558,350 @@ class VehicleAPITest(APITestCase):
         response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data['available'], True)
+
+
+class VehiclePermissionTest(APITestCase):
+    """Тесты для проверки разрешений на транспортные средства"""
+
+    def setUp(self):
+        """Настройка тестовых данных"""
+        # Создаем пользователей с разными ролями
+        self.admin_user = User.objects.create_superuser('+79111111111', 'adminpass')
+        self.manager_user = User.objects.create_user('+79222222222', 'managerpass')
+        self.regular_user = User.objects.create_user('+79333333333', 'userpass')
+
+        # Создаем группу менеджеров с правами на операции с транспортными средствами
+        self.manager_group, _ = Group.objects.get_or_create(name='Менеджеры транспорта')
+
+        # Получаем или создаем права для транспортных средств
+        content_type = ContentType.objects.get_for_model(Vehicle)
+
+        create_vehicle_perm, _ = Permission.objects.get_or_create(
+            codename='can_create_vehicle',
+            name='Может создавать транспортные средства',
+            content_type=content_type,
+        )
+
+        update_vehicle_perm, _ = Permission.objects.get_or_create(
+            codename='can_update_vehicle',
+            name='Может изменять транспортные средства',
+            content_type=content_type,
+        )
+
+        delete_vehicle_perm, _ = Permission.objects.get_or_create(
+            codename='can_delete_vehicle',
+            name='Может удалять транспортные средства',
+            content_type=content_type,
+        )
+
+        # Добавляем разрешения к группе менеджеров
+        self.manager_group.permissions.add(create_vehicle_perm, update_vehicle_perm, delete_vehicle_perm)
+
+        # Добавляем пользователя в группу менеджеров
+        self.manager_user.groups.add(self.manager_group)
+
+        # Создаем тестовые транспортные средства
+        self.vehicle1 = Vehicle.objects.create(
+            vehicle_type='bus',
+            license_plate='А123АА',
+            total_seats=40,
+            is_comfort=True,
+            air_conditioning=True,
+            allows_pets=False
+        )
+
+        self.vehicle2 = Vehicle.objects.create(
+            vehicle_type='minibus',
+            license_plate='В456ВВ',
+            total_seats=20,
+            is_comfort=False,
+            air_conditioning=True,
+            allows_pets=True
+        )
+
+        # URL для тестов
+        self.vehicle_list_url = reverse('vehicle-list')
+        self.vehicle1_detail_url = reverse('vehicle-detail', args=[self.vehicle1.id])
+        self.vehicle1_availability_url = reverse('vehicle-availability', args=[self.vehicle1.id])
+
+        # Клиент для запросов
+        self.client = APIClient()
+
+    def test_list_vehicles_as_anonymous(self):
+        """Тест запрета доступа к списку транспортных средств для анонимного пользователя"""
+        response = self.client.get(self.vehicle_list_url)
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_list_vehicles_as_authenticated(self):
+        """Тест доступа к списку транспортных средств для аутентифицированного пользователя"""
+        self.client.force_authenticate(user=self.regular_user)
+        response = self.client.get(self.vehicle_list_url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 2)  # Проверяем, что список содержит оба автомобиля
+
+    def test_retrieve_vehicle_as_anonymous(self):
+        """Тест запрета доступа к просмотру детальной информации ТС для анонимного пользователя"""
+        response = self.client.get(self.vehicle1_detail_url)
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_retrieve_vehicle_as_authenticated(self):
+        """Тест доступа к просмотру детальной информации ТС для аутентифицированного пользователя"""
+        self.client.force_authenticate(user=self.regular_user)
+        response = self.client.get(self.vehicle1_detail_url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['id'], self.vehicle1.id)
+        self.assertEqual(response.data['vehicle_type'], 'bus')
+
+    def test_create_vehicle_as_anonymous(self):
+        """Тест запрета создания ТС для анонимного пользователя"""
+        data = {
+            'vehicle_type': 'car',
+            'license_plate': 'Р555РР',
+            'total_seats': 5,
+            'is_comfort': True,
+            'air_conditioning': True,
+            'allows_pets': False
+        }
+
+        response = self.client.post(self.vehicle_list_url, data)
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_create_vehicle_as_regular_user(self):
+        """Тест запрета создания ТС для обычного пользователя без прав"""
+        self.client.force_authenticate(user=self.regular_user)
+
+        data = {
+            'vehicle_type': 'car',
+            'license_plate': 'Р555РР',
+            'total_seats': 5,
+            'is_comfort': True,
+            'air_conditioning': True,
+            'allows_pets': False
+        }
+
+        response = self.client.post(self.vehicle_list_url, data)
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_create_vehicle_as_manager(self):
+        """Тест создания ТС менеджером с правами на создание"""
+        self.client.force_authenticate(user=self.manager_user)
+
+        data = {
+            'vehicle_type': 'car',
+            'license_plate': 'Р555РР',
+            'total_seats': 5,
+            'is_comfort': True,
+            'air_conditioning': True,
+            'allows_pets': False
+        }
+
+        response = self.client.post(self.vehicle_list_url, data)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+        # Проверяем, что ТС создалось
+        vehicle_id = response.data['id']
+        self.assertTrue(Vehicle.objects.filter(id=vehicle_id).exists())
+
+        # Проверяем, что места созданы автоматически
+        vehicle = Vehicle.objects.get(id=vehicle_id)
+        self.assertEqual(Seat.objects.filter(vehicle=vehicle).count(), 5)
+
+    def test_create_vehicle_as_admin(self):
+        """Тест создания ТС администратором"""
+        self.client.force_authenticate(user=self.admin_user)
+
+        data = {
+            'vehicle_type': 'car',
+            'license_plate': 'Р555РР',
+            'total_seats': 5,
+            'is_comfort': True,
+            'air_conditioning': True,
+            'allows_pets': False
+        }
+
+        response = self.client.post(self.vehicle_list_url, data)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+        # Проверяем, что места созданы автоматически
+        vehicle_id = response.data['id']
+        vehicle = Vehicle.objects.get(id=vehicle_id)
+        self.assertEqual(Seat.objects.filter(vehicle=vehicle).count(), 5)
+
+    def test_update_vehicle_as_regular_user(self):
+        """Тест запрета обновления ТС обычным пользователем без прав"""
+        self.client.force_authenticate(user=self.regular_user)
+
+        data = {
+            'vehicle_type': 'bus',
+            'license_plate': 'А123АА',
+            'total_seats': 45,
+            'is_comfort': False,
+            'air_conditioning': True,
+            'allows_pets': True
+        }
+
+        response = self.client.put(self.vehicle1_detail_url, data)
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+        # Проверяем, что данные не обновились
+        self.vehicle1.refresh_from_db()
+        self.assertEqual(self.vehicle1.total_seats, 40)
+        self.assertEqual(self.vehicle1.is_comfort, True)
+        self.assertEqual(self.vehicle1.allows_pets, False)
+
+    def test_update_vehicle_as_manager(self):
+        """Тест обновления ТС менеджером с правами на обновление"""
+        self.client.force_authenticate(user=self.manager_user)
+
+        data = {
+            'vehicle_type': 'bus',
+            'license_plate': 'А123АА',
+            'total_seats': 45,
+            'is_comfort': False,
+            'air_conditioning': True,
+            'allows_pets': True
+        }
+
+        response = self.client.put(self.vehicle1_detail_url, data)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        # Проверяем, что данные обновились
+        self.vehicle1.refresh_from_db()
+        self.assertEqual(self.vehicle1.total_seats, 45)
+        self.assertEqual(self.vehicle1.is_comfort, False)
+        self.assertEqual(self.vehicle1.allows_pets, True)
+
+        # Проверяем, что места обновились
+        seats = Seat.objects.filter(vehicle=self.vehicle1)
+        self.assertEqual(seats.count(), 45)
+
+    def test_update_vehicle_as_admin(self):
+        """Тест обновления ТС администратором"""
+        self.client.force_authenticate(user=self.admin_user)
+
+        data = {
+            'vehicle_type': 'bus',
+            'license_plate': 'А123АА',
+            'total_seats': 45,
+            'is_comfort': False,
+            'air_conditioning': True,
+            'allows_pets': True
+        }
+
+        response = self.client.put(self.vehicle1_detail_url, data)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        # Проверяем, что данные обновились
+        self.vehicle1.refresh_from_db()
+        self.assertEqual(self.vehicle1.total_seats, 45)
+        self.assertEqual(self.vehicle1.is_comfort, False)
+        self.assertEqual(self.vehicle1.allows_pets, True)
+
+    def test_delete_vehicle_as_regular_user(self):
+        """Тест запрета удаления ТС обычным пользователем без прав"""
+        self.client.force_authenticate(user=self.regular_user)
+
+        response = self.client.delete(self.vehicle1_detail_url)
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+        # Проверяем, что ТС не удалилось
+        self.assertTrue(Vehicle.objects.filter(id=self.vehicle1.id).exists())
+
+    def test_delete_vehicle_as_manager(self):
+        """Тест удаления ТС менеджером с правами на удаление"""
+        self.client.force_authenticate(user=self.manager_user)
+
+        response = self.client.delete(self.vehicle1_detail_url)
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+
+        # Проверяем, что ТС удалилось
+        self.assertFalse(Vehicle.objects.filter(id=self.vehicle1.id).exists())
+
+        # Проверяем, что места тоже удалились (из-за on_delete=CASCADE)
+        self.assertEqual(Seat.objects.filter(vehicle_id=self.vehicle1.id).count(), 0)
+
+    def test_delete_vehicle_as_admin(self):
+        """Тест удаления ТС администратором"""
+        self.client.force_authenticate(user=self.admin_user)
+
+        response = self.client.delete(self.vehicle1_detail_url)
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+
+        # Проверяем, что ТС удалилось
+        self.assertFalse(Vehicle.objects.filter(id=self.vehicle1.id).exists())
+
+    def test_availability_checker_as_anonymous(self):
+        """Тест запрета доступа к проверке доступности ТС для анонимного пользователя"""
+        now = timezone.now()
+        free_time_start = (now + timedelta(hours=1)).replace(microsecond=0).strftime('%Y-%m-%dT%H:%M:%S')
+        free_time_end = (now + timedelta(hours=6)).replace(microsecond=0).strftime('%Y-%m-%dT%H:%M:%S')
+
+        url = f"{self.vehicle1_availability_url}?start_time={free_time_start}&end_time={free_time_end}"
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_availability_checker_as_authenticated(self):
+        """Тест доступа к проверке доступности ТС для аутентифицированного пользователя"""
+        self.client.force_authenticate(user=self.regular_user)
+
+        now = timezone.now()
+        free_time_start = (now + timedelta(hours=1)).replace(microsecond=0).strftime('%Y-%m-%dT%H:%M:%S')
+        free_time_end = (now + timedelta(hours=6)).replace(microsecond=0).strftime('%Y-%m-%dT%H:%M:%S')
+
+        url = f"{self.vehicle1_availability_url}?start_time={free_time_start}&end_time={free_time_end}"
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['available'], True)
+
+    def test_role_permissions_consistency(self):
+        """Тест последовательности назначения и отзыва прав через группы"""
+        # Создаем нового пользователя и проверяем отсутствие прав
+        test_user = User.objects.create_user('+79555555555', 'testpass')
+        self.client.force_authenticate(user=test_user)
+
+        data = {
+            'vehicle_type': 'car',
+            'license_plate': 'Р555РР',
+            'total_seats': 5,
+            'is_comfort': True,
+            'air_conditioning': True,
+            'allows_pets': False
+        }
+
+        response = self.client.post(self.vehicle_list_url, data)
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+        # Добавляем пользователя в группу менеджеров
+        test_user.groups.add(self.manager_group)
+
+        # Теперь пользователь должен иметь право создавать ТС
+        response = self.client.post(self.vehicle_list_url, data)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+        # Для обновления ТС нужно получить ID нового транспорта
+        vehicle_id = response.data['id']
+        vehicle_detail_url = reverse('vehicle-detail', args=[vehicle_id])
+
+        # Проверяем, что пользователь может обновлять свои ТС
+        update_data = {
+            'vehicle_type': 'car',
+            'license_plate': 'Р555РР',
+            'total_seats': 6,  # Увеличиваем количество мест
+            'is_comfort': False,  # Меняем уровень комфорта
+            'air_conditioning': True,
+            'allows_pets': True  # Разрешаем животных
+        }
+
+        response = self.client.put(vehicle_detail_url, update_data)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        # Удаляем пользователя из группы менеджеров
+        test_user.groups.remove(self.manager_group)
+
+        # Снова нет права на редактирование
+        response = self.client.put(vehicle_detail_url, update_data)
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+        # И нет права на удаление
+        response = self.client.delete(vehicle_detail_url)
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)

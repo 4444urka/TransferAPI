@@ -47,12 +47,24 @@ class User(AbstractBaseUser):
         return f"{self.phone_number} {self.first_name} {self.last_name}"
 
     def has_perm(self, perm, obj=None):
-        """Проверка прав доступа (требуется для админ-панели)."""
-        return self.is_staff
+        """Проверка прав доступа с учетом групп и разрешений"""
+        # Суперпользователи имеют все права
+        if self.is_superuser:
+            return True
+
+        # Проверяем конкретное разрешение
+        return self.user_permissions.filter(codename=perm.split('.')[1]).exists() or \
+            self.groups.filter(permissions__codename=perm.split('.')[1]).exists()
 
     def has_module_perms(self, app_label):
-        """Проверка прав доступа к модулю (требуется для админ-панели)."""
-        return self.is_staff
+        """Проверка прав доступа к модулю с учетом групп и разрешений"""
+        # Суперпользователи имеют все права
+        if self.is_superuser:
+            return True
+
+        # Проверяем разрешения для указанного приложения
+        return self.user_permissions.filter(content_type__app_label=app_label).exists() or \
+            self.groups.filter(permissions__content_type__app_label=app_label).exists()
 
     class Meta:
         verbose_name = "Пользователь"

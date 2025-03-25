@@ -41,7 +41,19 @@ class SeatAdmin(admin.ModelAdmin):
     formatted_seat_type.admin_order_field = 'seat_type'
 
     def has_delete_permission(self, request, obj=None):
-        """Запрещает удаление мест через админку напрямую"""
+        """
+        Запрещает прямое удаление мест через админку,
+        но разрешает каскадное удаление при удалении транспортного средства
+        """
+        # Всегда разрешаем удаление при каскадном удалении
+        if request.method == 'POST' and not obj:
+            return True
+
+        # Для суперпользователя разрешаем любые операции
+        if request.user.is_superuser:
+            return True
+
+        # В остальных случаях запрещаем прямое удаление мест
         return False
 
 

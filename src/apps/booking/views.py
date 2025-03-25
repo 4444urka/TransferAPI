@@ -56,11 +56,11 @@ class BookingViewSet(viewsets.ModelViewSet):
         operation_summary="Создание бронирования",
         request_body=openapi.Schema(
             type=openapi.TYPE_OBJECT,
-            required=['trip_id', 'seats_ids', 'pickup_location', 'dropoff_location'],
+            required=['trip_id', 'seat_numbers', 'pickup_location', 'dropoff_location'],
             properties={
                 'trip_id': openapi.Schema(type=openapi.TYPE_INTEGER, description='ID поездки'),
-                'seats_ids': openapi.Schema(type=openapi.TYPE_ARRAY, items=openapi.Items(type=openapi.TYPE_INTEGER),
-                                            description='Массив ID мест для бронирования'),
+                'seat_numbers': openapi.Schema(type=openapi.TYPE_ARRAY, items=openapi.Items(type=openapi.TYPE_INTEGER),
+                                            description='Массив номеров мест для бронирования'),
                 'pickup_location': openapi.Schema(type=openapi.TYPE_STRING, description='Адрес посадки'),
                 'dropoff_location': openapi.Schema(type=openapi.TYPE_STRING, description='Адрес высадки')
             }

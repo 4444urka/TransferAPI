@@ -33,6 +33,9 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+        
       - name: Create migrations
         run: docker compose exec -T web python src/manage.py makemigrations
 

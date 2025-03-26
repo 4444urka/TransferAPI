@@ -178,6 +178,11 @@ class UserService:
             update_fields = []
             
             for field in allowed_fields:
+                if field == 'phone_number' and 'phone_number' in data:
+                    if User.objects.filter(phone_number=data['phone_number']).exclude(id=user_id).exists():
+                        self.logger.error('Phone number already in use')
+                        raise serializers.ValidationError('Phone number already in use')
+                
                 if field in data:
                     setattr(user, field, data[field])
                     update_fields.append(field)

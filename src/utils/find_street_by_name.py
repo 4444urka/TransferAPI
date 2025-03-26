@@ -65,15 +65,18 @@ def find_street_by_name(street: str, city: str = None) -> str | None:
         response.raise_for_status()
         
         # Получаем данные из ответа
-        data = response.json()
-        
+        data = response.json()        
         # Проверяем, что в ответе есть данные
         if not data:
+            logger.debug(f"Address not found trying fallback search: {street_name}")
             return fallback_search(street_name, city, cache_key, house_info)
+        
+        logger.debug(f"Found data: {data}")
             
         # Получаем адрес из первого результата
         address = data[0].get('address')
         if not address:
+            logger.debug(f"Address is empty trying fallback search: {street_name}")
             return fallback_search(street_name, city, cache_key, house_info)
             
         road = address.get('road')
@@ -82,19 +85,23 @@ def find_street_by_name(street: str, city: str = None) -> str | None:
         if house_info:
             house_number = house_info
         else:
+            logger.debug("There is no house info trying to get it from the response")
             # Иначе пытаемся получить номер дома из результата
             house_number = address.get('house_number')
             
             # Если номер дома не найден, то щщем в исходном запросе
             if house_number is None:
+                logger.debug("House number not found trying to get it from the original request")
                 house_match = re.search(r'(\d+)(\s*к\.?\s*\d+)?$', street)
                 if house_match:
                     house_number = house_match.group(0).strip()
 
         if road is None:
+            logger.debug(f"Road is empty trying fallback search: {street_name}")
             return fallback_search(street_name, city, cache_key, house_info)
             
         if house_number is None:
+            logger.debug(f"House number is empty trying to return only street: {road}")
             # возвращаем только улицу, если номер дома не получили
             result = f"{road}"
             cache.set(cache_key, result, timeout=86400)

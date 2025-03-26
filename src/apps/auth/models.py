@@ -10,8 +10,8 @@ class User(AbstractBaseUser):
     phone_number = PhoneNumberField(unique=True,
                                     verbose_name="Номер телефона",
                                     help_text="Введите номер телефона в международном формате (к примеру: +1234567890)")
-    first_name = models.CharField(max_length=30, verbose_name="Имя")
-    last_name = models.CharField(max_length=30, verbose_name="Фамилия")
+    first_name = models.CharField(max_length=30, verbose_name="Имя", blank=True, null=True)
+    last_name = models.CharField(max_length=30, verbose_name="Фамилия", blank=True, null=True)
     is_active = models.BooleanField(default=True, verbose_name="Активен")  # Активен ли пользователь
     is_staff = models.BooleanField(default=False, verbose_name="Является администратором")  # Является ли администратором
     date_joined = models.DateTimeField(auto_now_add=True, verbose_name="Дата и время регистрации")
@@ -38,8 +38,7 @@ class User(AbstractBaseUser):
     USERNAME_FIELD = 'phone_number'
     REQUIRED_FIELDS = []
 
-    # Используем наш кастомный менеджер ( мы наследуемся от AbstractBaseUser,
-    # а значит надо определять заново необходимые медоты, для этого и нужен UserManager())
+    # Используем наш кастомный менеджер
     objects = UserManager()
 
 

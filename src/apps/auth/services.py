@@ -172,9 +172,6 @@ class UserService:
         self.logger.debug(f'Updating user with id {user_id}')
         try:
             user = self.get_user_by_id(user_id)
-            if not user:
-                self.logger.warning(f'User with id {user_id} not found for update')
-                return None
                 
             # Обновляем только разрешенные поля
             allowed_fields = ['first_name', 'last_name', 'phone_number']
@@ -236,10 +233,6 @@ class UserService:
         self.logger.debug(f'Deleting user with id: {user_id}')
         try:
             user = self.get_user_by_id(user_id)
-            if not user:
-                self.logger.warning(f'User with id {user_id} not found for deletion')
-                return False
-                
             user.delete()
             self.logger.info(f'User with id {user_id} successfully deleted')
             return True

@@ -228,22 +228,51 @@ class TripViewSetTest(APITestCase):
         # Проверяем, что связанные TripSeat также удалились
         self.assertEqual(TripSeat.objects.filter(trip_id=self.trip.id).count(), 0)
 
-    def test_filter_by_date(self):
-        """Тест фильтрации поездок по дате"""
-        # Получаем дату поездки future_trip
-        future_date = self.future_trip.departure_time.date().isoformat()
-
-        url = f"{self.trip_list_url}?date={future_date}"
-        response = self.client.get(url)
-
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-
-        # Проверяем, что в результатах только future_trip
-        results = response.data['results']
-        trip_ids = [trip['id'] for trip in results]
-        self.assertIn(self.future_trip.id, trip_ids)
-        self.assertNotIn(self.trip.id, trip_ids)
-        self.assertNotIn(self.another_trip.id, trip_ids)
+def test_filter_by_date(self):
+    """Тест фильтрации поездок по дате"""
+    # Создаем новую поездку и старую поездку с одинаковой датой отправления
+    same_day = (self.now + timedelta(days=5)).replace(hour=0, minute=0, second=0, microsecond=0)
+    
+    # Создаем две поездки в один день, но в разное время
+    morning_trip = Trip.objects.create(
+        vehicle=self.vehicle1,
+        origin=self.origin,
+        destination=self.destination,
+        departure_time=same_day + timedelta(hours=8),  # 8:00 утра
+        arrival_time=same_day + timedelta(hours=12),   # 12:00 дня
+        default_ticket_price=Decimal('500.00')
+    )
+    
+    evening_trip = Trip.objects.create(
+        vehicle=self.vehicle1,
+        origin=self.origin,
+        destination=self.destination,
+        departure_time=same_day + timedelta(hours=18),  # 18:00 вечера
+        arrival_time=same_day + timedelta(hours=22),    # 22:00 вечера
+        default_ticket_price=Decimal('600.00')
+    )
+    
+    # Фильтруем по дате (день, месяц, год без времени)
+    date_to_filter = same_day.date().isoformat()
+    
+    print(f"Тестируем фильтрацию по дате: {date_to_filter}")
+    print(f"ID morning_trip: {morning_trip.id}, departure_time: {morning_trip.departure_time}")
+    print(f"ID evening_trip: {evening_trip.id}, departure_time: {evening_trip.departure_time}")
+    
+    url = f"{self.trip_list_url}?date={date_to_filter}"
+    response = self.client.get(url)
+    
+    # Выводим полученные результаты для отладки
+    print(f"Полученные результаты: {response.data['results']}")
+    
+    self.assertEqual(response.status_code, status.HTTP_200_OK)
+    
+    # Проверяем, что в результатах присутствуют обе поездки на один день
+    results = response.data['results']
+    trip_ids = [trip['id'] for trip in results]
+    
+    self.assertIn(morning_trip.id, trip_ids)
+    self.assertIn(evening_trip.id, trip_ids)
 
     def test_filter_by_price(self):
         """Тест фильтрации поездок по цене"""

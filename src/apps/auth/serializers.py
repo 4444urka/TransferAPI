@@ -41,7 +41,6 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         return data
     
     def create(self, validated_data):
-        logger.debug('Creating new user')
         try:
             # Создание пользователя через сервис
             user = self.user_service.create_user(
@@ -51,10 +50,8 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
                 last_name=validated_data.get('last_name', '')
             )
         except Exception as e:
-            logger.error(f'Error creating user: {e}')
             raise serializers.ValidationError(str(e))
         
-        logger.info(f'Created new user: {user}')
         return user
 
 

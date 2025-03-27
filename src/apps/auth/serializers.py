@@ -40,8 +40,8 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         try:
             validators.validate_password(password=password, user=user)
         except ValidationError as e:
-            logger.error(f'Error validating password: {e}')
-            raise serializers.ValidationError(str(e))
+            logger.error(f'Error validating password: {type(e).__name__}')
+            raise serializers.ValidationError('Error validating password')
 
         return super(UserRegistrationSerializer, self).validate(data)
 
@@ -53,9 +53,9 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
                 password=validated_data['password']
             )
         except Exception as e:
-            logger.error(f'Error creating user: {e}')
+            logger.error(f'Error creating user: {type(e).__name__}')
             raise serializers.ValidationError('Error creating user')
-        logger.info(f'Created new user: {user}')
+        logger.info('Created new user')
         return user
 
 
@@ -69,7 +69,7 @@ class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
             # Поля, которые будут в токене
             token['phone_number'] = str(user.phone_number)
         except Exception as e:
-            logger.error(f'Error creating token: {e}')
+            logger.error(f'Error creating token: {type(e).__name__}')
             raise serializers.ValidationError('Error creating token')
-        logger.info(f'Created new token: {token}')
+        logger.info('Created new token')
         return token

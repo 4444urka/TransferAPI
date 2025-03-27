@@ -42,7 +42,7 @@ class SystemHealthView(APIView):
                     'connections': self._get_db_connections()
                 }
         except Exception as e:
-            services['postgresql'] = {'status': 'down', 'error': str(e)}
+            services['postgresql'] = {'status': 'down', 'error': type(e).__name__}
 
         # Redis
         try:
@@ -53,7 +53,7 @@ class SystemHealthView(APIView):
                 'used_memory': self._get_redis_memory()
             }
         except Exception as e:
-            services['redis'] = {'status': 'down', 'error': str(e)}
+            services['redis'] = {'status': 'down', 'error': type(e).__name__}
 
         return services
 
@@ -148,5 +148,5 @@ class ModuleHealthView(APIView):
         except Exception as e:
             return {
                 'status': 'down',
-                'error': str(e)
+                'error': type(e).__name__
             }

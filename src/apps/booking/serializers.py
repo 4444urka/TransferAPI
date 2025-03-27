@@ -59,7 +59,7 @@ class BookingDetailSerializer(serializers.ModelSerializer):
 
         # Создаем бронирование
         booking = Booking.objects.create(**validated_data)
-        logger.info(f"Created new booking: {booking}")
+        logger.info(f"Created new booking")
 
         # Бронируем места
         logger.debug("Booking some seats")

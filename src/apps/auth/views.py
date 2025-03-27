@@ -33,10 +33,7 @@ class UserListView(generics.ListAPIView):
     permission_classes = [IsAuthenticated, HasUserPermissions]
 
     def get_queryset(self):
-        # Проверяем права доступа - администраторы видят всех, обычные пользователи - только себя
-        if self.request.user.is_staff or self.request.user.is_superuser:
-            return User.objects.all()
-        return User.objects.filter(id=self.request.user.id)
+        return self.user_service.get_all_users()
 
     @swagger_auto_schema(
         operation_description="Получение списка пользователей. Администраторы получают всех, обычные пользователи - только себя.",

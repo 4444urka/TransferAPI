@@ -8,8 +8,8 @@ from apps.payment.models import Payment
 from apps.seat.models import Seat, TripSeat
 from apps.trip.models import Trip
 from apps.vehicle.models import Vehicle
-from utils.find_street_by_name import find_street_by_name
-from utils.street_validate_regex import street_validate_regex
+from utils.address import find_street_by_name
+from utils.address.street_validate_regex import street_validate_regex
 
 
 class Booking(models.Model):

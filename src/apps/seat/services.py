@@ -17,29 +17,29 @@ class SeatService:
         """
         Получить список всех мест.
         """
-        self.logger.debug("Получение списка всех мест")
+        self.logger.debug("Trying to get all seats")
         try:
             seats = Seat.objects.all()
-            self.logger.info(f"Найдено мест: {seats.count()}")
+            self.logger.info(f"Found seats: {seats.count()}")
             return list(seats)
         except Exception as e:
-            self.logger.error(f"Ошибка при получении мест: {e}")
+            self.logger.error(f"Error when trying to get all seats: {e}")
             raise
 
     def get_seat_by_id(self, seat_id: int) -> Optional[Seat]:
         """
         Получить место по его идентификатору.
         """
-        self.logger.debug(f"Получение места с id: {seat_id}")
+        self.logger.debug(f"Trying to get seat by id: {seat_id}")
         try:
             seat = Seat.objects.get(id=seat_id)
-            self.logger.info(f"Место с id {seat_id} найдено")
+            self.logger.info(f"Seat with id {seat_id} found")
             return seat
         except Seat.DoesNotExist:
-            self.logger.error(f"Место с id {seat_id} не найдено")
+            self.logger.error(f"Seat with id {seat_id} not exists")
             raise
         except Exception as e:
-            self.logger.error(f"Ошибка при получении места: {e}")
+            self.logger.error(f"Error get seat by id: {e}")
             raise
 
     def update_seat(self, seat_id: int, data: dict) -> Seat:
@@ -47,7 +47,7 @@ class SeatService:
         Обновить данные места.
         Выполняется обновление только разрешенных полей (например, is_booked, seat_type).
         """
-        self.logger.debug(f"Обновление места с id {seat_id}")
+        self.logger.debug(f"Trying to update seat: {seat_id}")
         try:
             seat = self.get_seat_by_id(seat_id)
             
@@ -61,26 +61,26 @@ class SeatService:
             
             if updated_fields:
                 seat.save(update_fields=updated_fields)
-                self.logger.info(f"Место с id {seat_id} обновлено: {', '.join(updated_fields)}")
+                self.logger.info(f"Seat with id {seat_id} successfully updated: {', '.join(updated_fields)}")
             return seat
         except Exception as e:
-            self.logger.error(f"Ошибка при обновлении места с id {seat_id}: {e}")
+            self.logger.error(f"Error when update seat {seat_id}: {e}")
             raise ValidationError(f"Ошибка обновления места: {str(e)}")
 
     def get_seats_by_vehicle(self, vehicle_id: int) -> List[Seat]:
         """
         Получить список мест для конкретного транспортного средства.
         """
-        self.logger.debug(f"Получение мест для транспортного средства с id: {vehicle_id}")
+        self.logger.debug(f"Trying to get seats by vehicle with id: {vehicle_id}")
         try:
             # Проверяем, существует ли транспортное средство
             vehicle = Vehicle.objects.get(pk=vehicle_id)
             seats = Seat.objects.filter(vehicle=vehicle)
-            self.logger.info(f"Найдено мест для транспортного средства {vehicle_id}: {seats.count()}")
+            self.logger.info(f"Found seats for vehicle {vehicle_id}: {seats.count()}")
             return list(seats)
         except Vehicle.DoesNotExist:
-            self.logger.error(f"Транспортное средство с id {vehicle_id} не найдено")
+            self.logger.error(f"Vehicle with given id {vehicle_id} does not exist")
             raise
         except Exception as e:
-            self.logger.error(f"Ошибка при получении мест для транспортного средства: {e}")
+            self.logger.error(f"Error when trying to get seats by vehicle: {e}")
             raise

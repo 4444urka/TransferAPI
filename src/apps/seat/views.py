@@ -1,3 +1,4 @@
+from typing import Any
 from rest_framework import mixins, viewsets, status
 from rest_framework.permissions import IsAdminUser
 from rest_framework.response import Response
@@ -10,6 +11,7 @@ from apps.seat.models import Seat, TripSeat
 from apps.seat.permissions import HasSeatPermission
 from apps.seat.serializers import SeatSerializer
 from apps.vehicle.models import Vehicle
+from .services import SeatService
 
 
 class SeatViewSet(mixins.ListModelMixin,
@@ -17,7 +19,7 @@ class SeatViewSet(mixins.ListModelMixin,
                   mixins.UpdateModelMixin,
                   viewsets.GenericViewSet):
     """
-    ViewSet для модели Seat.
+    ViewSet для модели Seat с использованием сервисного слоя.
 
     Доступные действия:
     - list (GET): получение списка мест.
@@ -28,7 +30,11 @@ class SeatViewSet(mixins.ListModelMixin,
     Создание (POST) и удаление (DELETE) отключены, так как:
     - Места создаются автоматически при создании транспортного средства (через сигналы).
     - Удаление мест разрешается только через удаление транспортного средства.
+
+
     """
+
+    seat_service = SeatService()
     queryset = Seat.objects.all()  # Восстановленная строка с атрибутом queryset
     serializer_class = SeatSerializer
 
@@ -42,7 +48,13 @@ class SeatViewSet(mixins.ListModelMixin,
         tags=["Места"]
     )
     def list(self, request, *args, **kwargs):
-        return super().list(request, *args, **kwargs)
+        try: 
+            seats = self.seat_service.get_all_seats()
+            serializer = self.get_serializer(seats, many=True)
+            return Response(serializer.data)
+        except Exception as e:
+            return Response({"detail": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
 
     @swagger_auto_schema(
         operation_description="Получение информации о конкретном месте",
@@ -50,22 +62,13 @@ class SeatViewSet(mixins.ListModelMixin,
         tags=["Места"]
     )
     def retrieve(self, request, *args, **kwargs):
-        return super().retrieve(request, *args, **kwargs)
-
-    @swagger_auto_schema(
-        operation_description="Полное обновление информации о месте (только разрешенные поля)",
-        operation_summary="Обновление места",
-        tags=["Места"],
-        request_body=openapi.Schema(
-            type=openapi.TYPE_OBJECT,
-            properties={
-                'is_booked': openapi.Schema(type=openapi.TYPE_BOOLEAN, description='Статус бронирования места'),
-                'seat_type': openapi.Schema(type=openapi.TYPE_STRING, description='Тип места (front, middle, back)')
-            }
-        )
-    )
-    def update(self, request, *args, **kwargs):
-        return super().update(request, *args, **kwargs)
+        try:
+            seat = self.seat_service.get_seat_by_id(kwargs.get('pk'))
+            serializer = self.get_serializer(seat)
+            return Response(serializer.data)
+        except Exception as e:
+            return Response({"detail": str(e)}, status=status.HTTP_404_NOT_FOUND)
+        
 
     @swagger_auto_schema(
         operation_description="Частичное обновление информации о месте (только разрешенные поля)",
@@ -74,15 +77,29 @@ class SeatViewSet(mixins.ListModelMixin,
         request_body=openapi.Schema(
             type=openapi.TYPE_OBJECT,
             properties={
-                'is_booked': openapi.Schema(type=openapi.TYPE_BOOLEAN, description='Статус бронирования места'),
                 'seat_type': openapi.Schema(type=openapi.TYPE_STRING, description='Тип места (front, middle, back)')
             }
         )
     )
     def partial_update(self, request, *args, **kwargs):
-        return super().partial_update(request, *args, **kwargs)
+        return self._update(request, partial=True)
 
-    # Переопределяем методы, чтобы все же получать понятные ответы даже при ручном вызове
+    def _update(self, request, partial: bool):
+        try:
+            seat = self.seat_service.get_seat_by_id(self.kwargs.get('pk'))
+        except Exception as e:
+            return Response({"detail": str(e)}, status=status.HTTP_404_NOT_FOUND)
+
+        serializer = self.get_serializer(seat, data=request.data, partial=partial)
+        serializer.is_valid(raise_exception=True)
+        
+        try:
+            updated_seat = self.seat_service.update_seat(seat.id, serializer.validated_data)
+            output_serializer = self.get_serializer(updated_seat)
+            return Response(output_serializer.data)
+        except Exception as e:
+            return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
     @swagger_auto_schema(
         operation_description="Создание нового места (запрещено)",
         operation_summary="Создание места",
@@ -116,20 +133,12 @@ class SeatViewSet(mixins.ListModelMixin,
         ],
         tags=["Места"]
     )
-    @action(detail=False, methods=['get'], url_path='by_vehicle/(?P<vehicle_id>[^/.]+)')
+    @action(detail=False, methods=['get'], url_path='by_vehicle/(?P<vehicle_id>\d+)')
     def get_seats_by_vehicle(self, request, vehicle_id=None):
         """Получение списка мест для конкретного транспортного средства"""
         try:
-            # Проверяем существование транспортного средства
-            vehicle = Vehicle.objects.get(pk=vehicle_id)
-
-            # Получаем места для этого транспортного средства
-            seats = Seat.objects.filter(vehicle=vehicle)
+            seats = self.seat_service.get_seats_by_vehicle(vehicle_id)
             serializer = self.get_serializer(seats, many=True)
-
-            return Response(serializer.data)
-        except Vehicle.DoesNotExist:
-            return Response(
-                {"detail": "Транспортное средство не найдено"},
-                status=status.HTTP_404_NOT_FOUND
-            )
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({"detail": str(e)}, status=status.HTTP_404_NOT_FOUND)

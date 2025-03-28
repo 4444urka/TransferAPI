@@ -34,9 +34,7 @@ class SeatViewSet(mixins.ListModelMixin,
 
     """
 
-    def __init__(self, **kwargs: Any) -> None:
-        super().__init__(**kwargs)
-        self.seat_service = SeatService()
+    seat_service = SeatService()
     queryset = Seat.objects.all()  # Восстановленная строка с атрибутом queryset
     serializer_class = SeatSerializer
 

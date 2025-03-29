@@ -169,15 +169,16 @@ class TripViewSet(viewsets.ModelViewSet):
         tags=["Поездки"]
     )
     @action(detail=True, methods=['get'])
-    def available_seats(self, request, pk=None):
-        """Получение списка свободных мест"""
+    def seats(self, request, pk=None):
+        """Получение списка всех мест в поездке (и занятых, и свободных)"""
         trip = self.get_object()
-        # Изменяем запрос, чтобы использовать TripSeat
-        trip_seats = TripSeat.objects.filter(trip=trip, is_booked=False).select_related('seat')
+        trip_seats = TripSeat.objects.filter(trip=trip).select_related('seat')
+
         return Response({
-            'available_seats': [{
+            'seats': [{
                 'id': trip_seat.seat.id,
                 'number': trip_seat.seat.seat_number,
-                'type': trip_seat.seat.seat_type
+                'type': trip_seat.seat.seat_type,
+                'is_booked': trip_seat.is_booked
             } for trip_seat in trip_seats]
         })

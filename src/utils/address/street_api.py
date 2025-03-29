@@ -2,6 +2,7 @@ import requests
 import logging
 from typing import Optional, Dict, Any
 from django.core.cache import cache
+import re
 
 logger = logging.getLogger(__name__)
 
@@ -51,6 +52,29 @@ class StreetAPI:
         if city in self.city_aliases:
             variants.extend(self.city_aliases[city])
         return variants
+
+    def _parse_display_name(self, display_name: str) -> Dict[str, str]:
+        """
+        Парсит строку display_name из API в компоненты адреса
+        """
+        parts = display_name.split(', ')
+        result = {}
+        
+        # Если первый элемент - число, это номер дома
+        if parts and parts[0].isdigit():
+            result['house_number'] = parts[0]
+            parts = parts[1:]
+        
+        # Ищем улицу
+        for part in parts:
+            if 'Street' in part or 'улица' in part or 'проспект' in part:
+                # Очищаем название улицы от типа улицы
+                street = part.replace(' Street', '').strip()
+                street = re.sub(r'^(ул\.|улица|пр\.|проспект|пер\.|переулок|наб\.|набережная|пр-д|проезд|ш\.|шоссе|б-р|бульвар)\s+', '', street, flags=re.IGNORECASE)
+                result['street'] = street
+                break
+        
+        return result
 
     def search_street(self, street_name: str, city: str, house_number: Optional[str] = None) -> Optional[Dict[str, Any]]:
         """
@@ -123,11 +147,19 @@ class StreetAPI:
                     
                     if not city_found:
                         continue
-                        
+                    
+                    # Парсим display_name для получения дополнительной информации
+                    display_name = item.get('display_name', '')
+                    parsed_address = self._parse_display_name(display_name)
+                    
+                    # Очищаем название улицы от типа улицы
+                    road = road.strip()
+                    road = re.sub(r'^(ул\.|улица|пр\.|проспект|пер\.|переулок|наб\.|набережная|пр-д|проезд|ш\.|шоссе|б-р|бульвар)\s+', '', road, flags=re.IGNORECASE)
+                    
                     result = {
                         'street': road,
-                        'house_number': address.get('house_number'),
-                        'full_address': item.get('display_name')
+                        'house_number': house_number or parsed_address.get('house_number'),
+                        'full_address': display_name
                     }
 
                     cache.set(cache_key, result, timeout=3600)  # кэшируем на 1 час
@@ -141,4 +173,27 @@ class StreetAPI:
             return None
         except Exception as e:
             logger.error(f"Unexpected error during API request: {str(e)}")
-            return None 
+            return None
+
+    def validate_house_number(self, house_number: int, street_name: str, city: str) -> bool:
+        """
+        Проверяет реалистичность номера дома на улице.
+        
+        Args:
+            house_number (int): Номер дома для проверки
+            street_name (str): Название улицы
+            city (str): Город
+            
+        Returns:
+            bool: True если номер реалистичный, False если нет
+        """
+        try:
+            # TODO: придумать алгоритм 
+            if house_number > 300:
+                logger.warning(f"House number {house_number} exceeds maximum allowed value of 300")
+                return False
+            return True
+            
+        except Exception as e:
+            logger.error(f"Error validating house number: {str(e)}")
+            return False 

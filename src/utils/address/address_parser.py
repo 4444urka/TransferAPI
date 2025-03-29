@@ -15,6 +15,24 @@ def extract_address_parts(address: str) -> Tuple[Optional[str], Optional[str], O
     if street_type_match:
         street_type = street_type_match.group(1)
         address = address[len(street_type):].strip()
+        
+        # Удаляем дублирование типа улицы в начале названия
+        address = re.sub(r'^(улица|ул\.)\s+(улица|ул\.)\s+', '', address)
+        address = re.sub(r'^(проспект|пр\.)\s+(проспект|пр\.)\s+', '', address)
+        address = re.sub(r'^(переулок|пер\.)\s+(переулок|пер\.)\s+', '', address)
+        address = re.sub(r'^(набережная|наб\.)\s+(набережная|наб\.)\s+', '', address)
+        address = re.sub(r'^(шоссе|ш\.)\s+(шоссе|ш\.)\s+', '', address)
+        address = re.sub(r'^(бульвар|б-р)\s+(бульвар|б-р)\s+', '', address)
+        address = re.sub(r'^(проезд|пр-д)\s+(проезд|пр-д)\s+', '', address)
+        
+        # Удаляем дублирование типа улицы в середине названия
+        address = re.sub(r'\bулица\s+улица\b|\bулица\s+ул\.\b|\bул\.\s+улица\b', '', address)
+        address = re.sub(r'\bпроспект\s+проспект\b|\bпроспект\s+пр\.\b|\bпр\.\s+проспект\b', '', address)
+        address = re.sub(r'\bпереулок\s+переулок\b|\bпереулок\s+пер\.\b|\bпер\.\s+переулок\b', '', address)
+        address = re.sub(r'\bнабережная\s+набережная\b|\bнабережная\s+наб\.\b|\bнаб\.\s+набережная\b', '', address)
+        address = re.sub(r'\bшоссе\s+шоссе\b|\bшоссе\s+ш\.\b|\bш\.\s+шоссе\b', '', address)
+        address = re.sub(r'\bбульвар\s+бульвар\b|\bбульвар\s+б-р\b|\bб-р\s+бульвар\b', '', address)
+        address = re.sub(r'\bпроезд\s+проезд\b|\bпроезд\s+пр-д\b|\bпр-д\s+проезд\b', '', address)
     else:
         street_type = None
     
@@ -35,7 +53,9 @@ def extract_address_parts(address: str) -> Tuple[Optional[str], Optional[str], O
             address = address[:match.start()].strip()
             break
     
-    return street_type, address.strip(), house_number
+    # Удаляем лишние пробелы
+    address = re.sub(r'\s+', ' ', address).strip()
+    return street_type, address, house_number
 
 def extract_house_info(street_text: str) -> Optional[str]:
     """
@@ -78,13 +98,27 @@ def preprocess_street_name(street_name: str) -> str:
     Предварительно обрабатывает название улицы, заменяя сокращения и приводя к стандартному виду.
     """
     street_name = street_name.lower()
-    street_name = re.sub(r'\bдом\b|\bд\.\b', '', street_name)
-    street_name = re.sub(r'\bпр-т\b', 'проспект', street_name)
-    street_name = re.sub(r'\bул\.\b', 'улица', street_name)
-    street_name = re.sub(r'\bпр\b', 'проспект', street_name)
-    street_name = re.sub(r'\bнаб\.\b', 'набережная', street_name)
-    street_name = re.sub(r'\bпер\.\b', 'переулок', street_name)
-    street_name = re.sub(r'\bшос\.\b', 'шоссе', street_name)
-    street_name = re.sub(r'\bбул\.\b', 'бульвар', street_name)
+    
+    street_types = [
+        (r'\bулица\s+улица\b|\bулица\s+ул\.\b|\bул\.\s+улица\b', 'улица'),
+        (r'\bпроспект\s+проспект\b|\bпроспект\s+пр\.\b|\bпр\.\s+проспект\b', 'проспект'),
+        (r'\bпереулок\s+переулок\b|\bпереулок\s+пер\.\b|\bпер\.\s+переулок\b', 'переулок'),
+        (r'\bнабережная\s+набережная\b|\bнабережная\s+наб\.\b|\bнаб\.\s+набережная\b', 'набережная'),
+        (r'\bшоссе\s+шоссе\b|\bшоссе\s+ш\.\b|\bш\.\s+шоссе\b', 'шоссе'),
+        (r'\bбульвар\s+бульвар\b|\bбульвар\s+б-р\b|\bб-р\s+бульвар\b', 'бульвар'),
+        (r'\bпроезд\s+проезд\b|\bпроезд\s+пр-д\b|\bпр-д\s+проезд\b', 'проезд')
+    ]
+    
+    for pattern, replacement in street_types:
+        street_name = re.sub(pattern, replacement, street_name)
+    
+    street_name = re.sub(r'^(улица|ул\.)\s+(улица|ул\.)\s+', 'улица ', street_name)
+    street_name = re.sub(r'^(проспект|пр\.)\s+(проспект|пр\.)\s+', 'проспект ', street_name)
+    street_name = re.sub(r'^(переулок|пер\.)\s+(переулок|пер\.)\s+', 'переулок ', street_name)
+    street_name = re.sub(r'^(набережная|наб\.)\s+(набережная|наб\.)\s+', 'набережная ', street_name)
+    street_name = re.sub(r'^(шоссе|ш\.)\s+(шоссе|ш\.)\s+', 'шоссе ', street_name)
+    street_name = re.sub(r'^(бульвар|б-р)\s+(бульвар|б-р)\s+', 'бульвар ', street_name)
+    street_name = re.sub(r'^(проезд|пр-д)\s+(проезд|пр-д)\s+', 'проезд ', street_name)
+    
     street_name = re.sub(r'\s+', ' ', street_name).strip()
     return street_name 

@@ -3,7 +3,7 @@ import logging
 from typing import Optional
 from django.core.cache import cache
 
-from .address_validator import validate_house_number, validate_building_number, validate_street_name
+from .address_validator import validate_house_number, validate_building_number, validate_street_name, validate_house_number_realism
 from .address_parser import extract_address_parts, extract_house_info, preprocess_street_name
 from .street_api import StreetAPI
 
@@ -18,7 +18,7 @@ def find_street_by_name(address: str, city: str) -> Optional[str]:
         city (str): Город для поиска
         
     Returns:
-        Optional[str]: Адрес в стандартном формате или None, если улица не найдена
+        Optional[str]: Адрес в стандартном формате или None, если улица не найден
     """
     if not address or not city:
         return None
@@ -57,7 +57,38 @@ def find_street_by_name(address: str, city: str) -> Optional[str]:
             if not street:
                 return None
 
-        result = f"ул. {street['street']} {house_number}"
+        # Проверяем реалистичность номера дома
+        if not api.validate_house_number(int(house_number), street['street'], city):
+            logger.warning(f"Unrealistic house number {house_number} for street {street['street']}")
+            return None
+
+        # Определяем тип улицы
+        street_type = None
+        if 'переулок' in street['street'].lower():
+            street_type = 'пер.'
+        elif 'проспект' in street['street'].lower():
+            street_type = 'пр.'
+        elif 'набережная' in street['street'].lower():
+            street_type = 'наб.'
+        elif 'проезд' in street['street'].lower():
+            street_type = 'пр-д'
+        elif 'шоссе' in street['street'].lower():
+            street_type = 'ш.'
+        elif 'бульвар' in street['street'].lower():
+            street_type = 'б-р'
+        else:
+            street_type = 'ул.'
+
+        # Убираем тип улицы из названия, если он есть
+        street_name = street['street']
+        for prefix in ['ул.', 'улица', 'пр.', 'проспект', 'пер.', 'переулок', 'наб.', 'набережная', 'пр-д', 'проезд', 'ш.', 'шоссе', 'б-р', 'бульвар']:
+            if street_name.lower().startswith(prefix.lower()):
+                street_name = street_name[len(prefix):].strip()
+                break
+
+        # Формируем результат с правильным типом улицы
+        # result = f"{street_type} {street_name} {house_number}" # в это случае идёт запись "пер. Некрасовский переулок 5"
+        result = f"{street_name} {house_number}" # а это типо фикс
         if building_number:
             result += f" к {building_number}"
 

@@ -4,12 +4,49 @@ from decimal import Decimal
 from django.core.exceptions import ValidationError
 from .models import Booking
 from apps.seat.models import Seat
+from utils.address import find_street_by_name
 
 
 class BookingForm(forms.ModelForm):
     class Meta:
         model = Booking
         fields = '__all__'
+
+    def clean_pickup_location(self):
+        """Валидация и преобразование адреса места посадки"""
+        pickup_location = self.cleaned_data.get('pickup_location')
+        trip = self.cleaned_data.get('trip')
+
+        if not pickup_location or not trip:
+            return pickup_location
+
+        try:
+            refactored_location = find_street_by_name(pickup_location, trip.origin.name)
+            if refactored_location:
+                return refactored_location
+            else:
+                raise forms.ValidationError(
+                    f"Не найдена локация '{pickup_location}' в городе {trip.origin.name}")
+        except Exception as e:
+            raise forms.ValidationError(f"Ошибка проверки локации получения: {str(e)}")
+
+    def clean_dropoff_location(self):
+        """Валидация и преобразование адреса места высадки"""
+        dropoff_location = self.cleaned_data.get('dropoff_location')
+        trip = self.cleaned_data.get('trip')
+
+        if not dropoff_location or not trip:
+            return dropoff_location
+
+        try:
+            refactored_location = find_street_by_name(dropoff_location, trip.destination.name)
+            if refactored_location:
+                return refactored_location
+            else:
+                raise forms.ValidationError(
+                    f"Не найдена локация '{dropoff_location}' в городе {trip.destination.name}")
+        except Exception as e:
+            raise forms.ValidationError(f"Ошибка проверки локации высадки: {str(e)}")
 
     def clean_seats(self):
         """Проверяет места непосредственно в поле формы"""

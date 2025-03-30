@@ -13,8 +13,8 @@ from .filters import TripFilter
 from .models import Trip, City
 from .permissions import HasTripPermission
 from .serializers import TripListSerializer, TripDetailSerializer, TripCreateUpdateSerializer
-from ..seat.models import TripSeat
-
+from apps.seat.models import TripSeat
+from apps.seat.services.trip_seat_service import TripSeatService
 
 class TripViewSet(viewsets.ModelViewSet):
     """
@@ -37,6 +37,8 @@ class TripViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated, HasTripPermission]
     ordering_fields = ['departure_time', 'arrival_time', 'default_ticket_price']
     ordering = ['departure_time']
+
+    trip_seat_service = TripSeatService()
 
     @swagger_auto_schema(
         operation_description="Получение списка доступных поездок с возможностью фильтрации по множеству параметров",
@@ -172,13 +174,8 @@ class TripViewSet(viewsets.ModelViewSet):
     def seats(self, request, pk=None):
         """Получение списка всех мест в поездке (и занятых, и свободных)"""
         trip = self.get_object()
-        trip_seats = TripSeat.objects.filter(trip=trip).select_related('seat')
+        seats_data = self.trip_seat_service.get_seats_list(trip)
 
         return Response({
-            'seats': [{
-                'id': trip_seat.seat.id,
-                'number': trip_seat.seat.seat_number,
-                'type': trip_seat.seat.seat_type,
-                'is_booked': trip_seat.is_booked
-            } for trip_seat in trip_seats]
+            'seats': seats_data
         })

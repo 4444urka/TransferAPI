@@ -22,7 +22,7 @@ class HasTripPermission(permissions.BasePermission):
             return True
 
         # Для просмотра достаточно аутентификации
-        if view.action in ['list', 'retrieve', 'cities', 'available_seats']:
+        if view.action in ['list', 'retrieve', 'cities', 'seats']:
             return True
 
         # Для создания, требуется право can_create_trip или статус администратора
@@ -42,7 +42,7 @@ class HasTripPermission(permissions.BasePermission):
             return True
 
         # Просмотр доступен всем аутентифицированным пользователям
-        if view.action in ['retrieve', 'available_seats']:
+        if view.action in ['retrieve', 'seats']:
             return True
 
         # Обновление требует наличия права can_update_trip

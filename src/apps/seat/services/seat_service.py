@@ -2,7 +2,7 @@ import logging
 from typing import List, Optional
 
 from django.core.exceptions import ValidationError
-from .models import Seat
+from ..models import Seat
 from apps.vehicle.models import Vehicle
 
 class SeatService:

@@ -126,7 +126,7 @@ class TripViewSetTest(APITestCase):
         self.trip_list_url = reverse('trip-list')
         self.trip_detail_url = reverse('trip-detail', args=[self.trip.id])
         self.trip_cities_url = reverse('trip-cities')
-        self.available_seats_url = reverse('trip-available-seats', args=[self.trip.id])
+        self.available_seats_url = reverse('trip-seats', args=[self.trip.id])
 
         # Клиент для аутентифицированных запросов
         self.client = APIClient()
@@ -632,7 +632,7 @@ class TripPermissionsTest(APITestCase):
         self.trip_list_url = reverse('trip-list')
         self.trip_detail_url = reverse('trip-detail', args=[self.trip.id])
         self.trip_cities_url = reverse('trip-cities')
-        self.available_seats_url = reverse('trip-available-seats', args=[self.trip.id])
+        self.available_seats_url = reverse('trip-seats', args=[self.trip.id])
 
         # Клиент для запросов
         self.client = APIClient()
@@ -837,15 +837,15 @@ class TripPermissionsTest(APITestCase):
         response = self.client.get(self.trip_cities_url)
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
-    def test_access_available_seats_endpoint(self):
-        """Тест доступа к эндпоинту доступных мест аутентифицированными пользователями"""
+    def test_access_seats_endpoint(self):
+        """Тест доступа к эндпоинту мест аутентифицированными пользователями"""
         # Проверка для аутентифицированного пользователя
         self.client.force_authenticate(user=self.regular_user)
         response = self.client.get(self.available_seats_url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
-    def test_access_available_seats_endpoint_as_anonymous(self):
-        """Тест запрета доступа к эндпоинту доступных мест анонимным пользователям"""
+    def test_access_seats_endpoint_as_anonymous(self):
+        """Тест запрета доступа к эндпоинту мест анонимным пользователям"""
         # Проверка для анонимного пользователя
         response = self.client.get(self.available_seats_url)
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)

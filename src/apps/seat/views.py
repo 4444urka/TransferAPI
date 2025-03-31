@@ -11,7 +11,7 @@ from apps.seat.models import Seat, TripSeat
 from apps.seat.permissions import HasSeatPermission
 from apps.seat.serializers import SeatSerializer
 from apps.vehicle.models import Vehicle
-from .services import SeatService
+from .services.seat_service import SeatService
 
 
 class SeatViewSet(mixins.ListModelMixin,
@@ -35,7 +35,6 @@ class SeatViewSet(mixins.ListModelMixin,
     """
 
     seat_service = SeatService()
-    queryset = Seat.objects.all()  # Восстановленная строка с атрибутом queryset
     serializer_class = SeatSerializer
 
     # Получаем пермишеки 😘

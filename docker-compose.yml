@@ -30,6 +30,19 @@ services:
       - db
       - redis
 
+  bot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: telegram_bot
+    command: python src/bot/main.py
+    environment:
+      - PYTHONPATH=/app/src
+    volumes:
+      - .:/app
+    depends_on:
+      - web
+
 volumes:
   postgres_data:
   redis_data:

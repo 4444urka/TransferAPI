@@ -1,10 +1,11 @@
 import logging
 from typing import Optional, List, Dict, Any
-
+import phonenumbers
 from django.db.models import Q
 import django.contrib.auth.password_validation as validators
 from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework import serializers
+from rest_framework.exceptions import PermissionDenied
 
 from .models import User
 
@@ -47,7 +48,7 @@ class UserService:
             
         self.logger.info('User data validation passed')
     
-    def get_all_users(self) -> List[User]:
+    def get_all_users(self) -> Optional[User]:
         """
         Получить всех пользователей.
         
@@ -61,7 +62,7 @@ class UserService:
         try:
             users = User.objects.all()
             self.logger.info(f'Got {users.count()} users')
-            return list(users)
+            return users
         except Exception as e:
             self.logger.error(f'Failed to get all users: {e}')
             raise
@@ -162,6 +163,7 @@ class UserService:
         Args:
             user_id: Идентификатор пользователя
             data: Словарь с данными для обновления
+            current_user: объект пользователя, который сделал запрос
             
         Returns:
             Обновленный объект пользователя или None, если пользователь не найден
@@ -172,19 +174,40 @@ class UserService:
         self.logger.debug(f'Updating user with id {user_id}')
         try:
             user = self.get_user_by_id(user_id)
-                
-            # Обновляем только разрешенные поля
-            allowed_fields = ['first_name', 'last_name', 'phone_number']
+
+            allowed_fields = ['first_name', 'last_name', 'phone_number', 'chat_id']
             update_fields = []
+
+            mutable_data = data.copy() if hasattr(data, 'copy') else data
             
             for field in allowed_fields:
-                if field == 'phone_number' and 'phone_number' in data:
-                    if User.objects.filter(phone_number=data['phone_number']).exclude(id=user_id).exists():
+                if field == 'phone_number' and 'phone_number' in mutable_data:
+                    try:
+                        parsed_number = phonenumbers.parse(mutable_data[field], None)
+                        if not phonenumbers.is_valid_number(parsed_number):
+                            self.logger.error('Invalid phone number')
+                            raise serializers.ValidationError({'phone_number':'Invalid phone number'})
+                        phone_str = phonenumbers.format_number(parsed_number, phonenumbers.PhoneNumberFormat.E164)
+                        mutable_data[field] = phone_str
+                    except:
+                        self.logger.error('Invalid phone number')
+                        raise serializers.ValidationError({'phone_number':'Invalid phone number'})
+                    
+                    if User.objects.filter(phone_number=mutable_data[field]).exclude(id=user_id).exists():
                         self.logger.error('Phone number already in use')
-                        raise serializers.ValidationError('Phone number already in use')
-                
-                if field in data:
-                    setattr(user, field, data[field])
+                        raise serializers.ValidationError({'phone_number': 'Phone number already in use'})
+                    
+                if field == 'chat_id' and 'chat_id' in mutable_data:
+                    chat_id = str(mutable_data[field]) if isinstance(mutable_data[field], int) else mutable_data[field]
+                    if not chat_id.isdigit():
+                        raise serializers.ValidationError({'chat_id': 'Chat id must be numeric'})
+                    if User.objects.filter(chat_id=mutable_data[field]).exclude(id=user_id).exists():
+                        self.logger.error('Chat ID already in use')
+                        raise serializers.ValidationError({'chat_id': 'Chat ID already registered'})
+                    mutable_data[field] = chat_id
+
+                if field in mutable_data:
+                    setattr(user, field, mutable_data[field])
                     update_fields.append(field)
             
             if update_fields:

@@ -16,6 +16,7 @@ class User(AbstractBaseUser):
     is_staff = models.BooleanField(default=False, verbose_name="Является администратором")  # Является ли администратором
     date_joined = models.DateTimeField(auto_now_add=True, verbose_name="Дата и время регистрации")
     is_superuser = models.BooleanField(default=False, verbose_name="Является 'суперпользователем'")
+    chat_id = models.CharField(max_length=255, null=True, blank=True, unique=True, verbose_name='Телеграм Чат ID')
 
     # Добавляем группы и разрешения
     groups = models.ManyToManyField(

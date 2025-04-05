@@ -1,11 +1,9 @@
 import logging
-from wsgiref.validate import validator
 
-import django.contrib.auth.password_validation as validators
 from rest_framework import serializers
-from rest_framework.exceptions import ValidationError
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from .models import User
+from .services import UserService
 
 logger = logging.getLogger(__name__)
 
@@ -19,43 +17,41 @@ class UserSerializer(serializers.ModelSerializer):
 
 
 class UserRegistrationSerializer(serializers.ModelSerializer):
+    
     class Meta:
         model = User
-        fields = ['id', 'phone_number', 'password']
+        fields = ['id', 'phone_number', 'password', 'first_name', 'last_name']
         extra_kwargs = {
-            'phone_number': {'write_only': True},
             'password': {'write_only': True},
         }
-
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.user_service = UserService()
+    
     def validate(self, data):
-        user = User(**data)
-        logger.debug('Validating user data')
-        if User.objects.filter(phone_number=data['phone_number']).exists():
-            logger.error('User with this phone number already exists')
-            raise serializers.ValidationError('User with this phone number already exists')
-        logger.info('User data is valid')
-
+        phone_number = data['phone_number']
         password = data['password']
-
+        
         try:
-            validators.validate_password(password=password, user=user)
-        except ValidationError as e:
-            logger.error(f'Error validating password: {e}')
-            raise serializers.ValidationError(str(e))
-
-        return super(UserRegistrationSerializer, self).validate(data)
-
+            self.user_service.validate_user_data(phone_number, password)
+        except serializers.ValidationError as e:
+            raise e
+            
+        return data
+    
     def create(self, validated_data):
-        logger.debug('Creating new user')
         try:
-            user = User.objects.create_user(
+            # Создание пользователя через сервис
+            user = self.user_service.create_user(
                 phone_number=validated_data['phone_number'],
-                password=validated_data['password']
+                password=validated_data['password'],
+                first_name=validated_data.get('first_name', ''),
+                last_name=validated_data.get('last_name', '')
             )
         except Exception as e:
-            logger.error(f'Error creating user: {e}')
-            raise serializers.ValidationError('Error creating user')
-        logger.info(f'Created new user: {user}')
+            raise serializers.ValidationError(str(e))
+        
         return user
 
 
@@ -71,5 +67,5 @@ class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
         except Exception as e:
             logger.error(f'Error creating token: {e}')
             raise serializers.ValidationError('Error creating token')
-        logger.info(f'Created new token: {token}')
+        logger.info(f'Created new token')
         return token

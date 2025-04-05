@@ -38,8 +38,7 @@ class User(AbstractBaseUser):
     USERNAME_FIELD = 'phone_number'
     REQUIRED_FIELDS = []
 
-    # Используем наш кастомный менеджер ( мы наследуемся от AbstractBaseUser,
-    # а значит надо определять заново необходимые медоты, для этого и нужен UserManager())
+    # Используем наш кастомный менеджер
     objects = UserManager()
 
 

@@ -9,6 +9,7 @@ from django_filters.rest_framework import DjangoFilterBackend
 from .models import Booking
 from .permissions import HasBookingPermission
 from .serializers import BookingSerializer, BookingDetailSerializer
+from .services import BookingService
 
 class BookingViewSet(viewsets.ModelViewSet):
     """
@@ -31,7 +32,8 @@ class BookingViewSet(viewsets.ModelViewSet):
         manual_parameters=[
             openapi.Parameter('is_active', openapi.IN_QUERY, description="Фильтр по статусу активности (true/false)",
                               type=openapi.TYPE_BOOLEAN),
-            openapi.Parameter('trip', openapi.IN_QUERY, description="Фильтр по ID поездки", type=openapi.TYPE_INTEGER),
+            openapi.Parameter('trip', openapi.IN_QUERY, description="Фильтр по ID поездки",
+                              type=openapi.TYPE_INTEGER),
             openapi.Parameter('search', openapi.IN_QUERY, description="Поиск по названию городов",
                               type=openapi.TYPE_STRING),
             openapi.Parameter('ordering', openapi.IN_QUERY,
@@ -95,21 +97,8 @@ class BookingViewSet(viewsets.ModelViewSet):
         return super().destroy(request, *args, **kwargs)
 
     def get_queryset(self):
-        """
-        Фильтрация бронирований:
-        - Обычные пользователи видят только свои бронирования
-        - Пользователи с разрешением 'can_view_all_booking' или администраторы видят все
-        """
-        # Проверяем, вызывается ли метод для генерации схемы Swagger
-        if getattr(self, 'swagger_fake_view', False):
-            return Booking.objects.none()
-
-        # Администраторы или пользователи с правом просмотра всех бронирований
-        if self.request.user.is_superuser or self.request.user.has_perm('booking.can_view_all_booking'):
-            return Booking.objects.all()
-
-        # Обычные пользователи видят только свои бронирования
-        return Booking.objects.filter(user=self.request.user)
+        """Получение списка бронирований с учетом прав доступа"""
+        return BookingService.get_user_bookings(self.request.user)
 
     def get_serializer_class(self):
         """Используем разные сериализаторы для списка и деталей"""
@@ -150,20 +139,9 @@ class BookingViewSet(viewsets.ModelViewSet):
     def cancel(self, request, pk=None):
         """Эндпоинт для отмены бронирования"""
         booking = self.get_object()
-
-        if not booking.is_active:
-            return Response(
-                {"detail": "Бронирование уже отменено"},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        # Отмечаем бронирование как неактивное
-        booking.is_active = False
-        booking.save()
-
-        # Освобождаем места
-        for trip_seat in booking.trip_seats.all():
-            trip_seat.is_booked = False
-            trip_seat.save()
-
-        return Response({"detail": "Бронирование успешно отменено"})
+        
+        try:
+            BookingService.cancel_booking(booking)
+            return Response({"detail": "Бронирование успешно отменено"})
+        except ValidationError as e:
+            return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)

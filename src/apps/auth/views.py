@@ -2,7 +2,7 @@ from drf_yasg.utils import swagger_auto_schema
 
 from .services import UserService
 from .permissions import HasUserPermissions
-from .serializers import UserRegistrationSerializer, MyTokenObtainPairSerializer, UserSerializer
+from .serializers import UserRegistrationSerializer, MyTokenObtainPairSerializer, UserSerializer, UserUpdateSerializer
 from rest_framework import generics, status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -45,11 +45,11 @@ class UserListView(generics.ListAPIView):
     def get(self, request, *args, **kwargs):
         return super().get(request, *args, **kwargs)
     
-
+    
 class UpdateUserView(generics.GenericAPIView):
     user_service = UserService()
     queryset = user_service.get_all_users()
-    serializer_class = UserSerializer
+    serializer_class = UserUpdateSerializer
     permission_classes = [IsAuthenticated, HasUserPermissions]
     lookup_field = 'id'
     lookup_url_kwarg = 'user_id'
@@ -61,11 +61,11 @@ class UpdateUserView(generics.GenericAPIView):
     )
     def patch(self, request, *args, **kwargs):
         user_to_update = self.get_object()
-        data = request.data
-        updated_user = self.user_service.update_user(user_to_update.id, data)
-        serializer = self.serializer_class(updated_user)
-        return Response(serializer.data, status=status.HTTP_200_OK)
-        
+        serializer = self.get_serializer(instance=user_to_update, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        updated_user = serializer.save() # вызов update_user инкапсулирован в сериализаторе
+        return Response(self.get_serializer(updated_user).data, status=status.HTTP_200_OK)
+
 
 class RegistrationUserView(generics.CreateAPIView):
     serializer_class = UserRegistrationSerializer

@@ -16,6 +16,7 @@ class CustomUserChangeForm(UserChangeForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.user_service = UserService()
+        self.fields['phone_number'].disabled = True
 
     def clean_chat_id(self):
         chat_id = self.cleaned_data.get('chat_id')

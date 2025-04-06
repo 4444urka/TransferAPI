@@ -23,13 +23,22 @@ class UserUpdateSerializer(serializers.ModelSerializer):
     """
     class Meta:
         model = User
-        fields = ['first_name', 'last_name', 'phone_number', 'chat_id']
+        fields = ['id', 'phone_number', 'first_name', 'last_name', 'date_joined', 'chat_id']
+
+    allowed_fields = {'first_name', 'last_name', 'chat_id'}
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.user_service = UserService()
 
     def validate(self, data):
+        extra_fields = set(self.initial_data.keys()) - self.allowed_fields
+        if extra_fields:
+            raise serializers.ValidationError({
+                f"Unexpected fields: {', '.join(extra_fields)}. ",
+                f"Allowed fields: {', '.join(self.allowed_fields)}"}
+            )
+        
         user_id = self.instance.id if self.instance else None
 
         if 'phone_number' in data:

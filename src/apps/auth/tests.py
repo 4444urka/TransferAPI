@@ -236,6 +236,7 @@ class UserUpdateTests(APITestCase):
         self.phone_admin = "+79147282571"
         self.user_phone = "+79223334455"
         self.password = "normalpass123."
+        self.test_phone = "+79998881111"
         # Создаем пользователей напрямую через модель
         self.admin = User.objects.create_superuser(
             phone_number=self.phone_admin,
@@ -311,18 +312,11 @@ class UserUpdateTests(APITestCase):
         self.assertEqual(self.user.chat_id, '2222')
 
     # --- Тесты валидации ---
-    def test_unique_phone_number(self):
-        """Нельзя использовать существующий phone_number другого пользователя"""
+    def test_invalid_fields(self):
+        """Нельзя изменять недопустимые поля"""
         self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.admin_token}')
-        data = {'phone_number': self.user.phone_number}
+        data = {'phone_number': self.test_phone}
         response = self.client.patch(self.update_admin_url, data)
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-
-    def test_invalid_phone_format(self):
-        """Некорректный формат номера телефона"""
-        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.user_token}')
-        data = {'phone_number': 'invalid_phone'}
-        response = self.client.patch(self.update_user_url, data)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_invalid_chat_id(self):
@@ -333,14 +327,13 @@ class UserUpdateTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn('chat_id', response.data)
 
-    def test_protected_fields(self):
-        """Нельзя изменить защищенные поля (is_superuser)"""
+    def test_protected_fields(self) -> None:
+        """Попытка обновления защищенных (неразрешенных) полей должна вернуть ошибку."""
         self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.user_token}')
         data = {'is_superuser': True}
         response = self.client.patch(self.update_user_url, data)
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.user.refresh_from_db()
-        self.assertFalse(self.user.is_superuser)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
 
     # --- Тесты граничных условий ---
     def test_update_nonexistent_user(self):
@@ -371,3 +364,34 @@ class UserUpdateTests(APITestCase):
         
         response = self.client.delete(self.update_user_url)
         self.assertEqual(response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
+
+    # --- Тест неопределенных полей ---
+    def test_unexpected_fields(self) -> None:
+        """Передача недопустимых полей приводит к ошибке валидации."""
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.user_token}')
+        data = {'first_name': 'Test', 'unknown_field': 'value'}
+        response = self.client.patch(self.update_user_url, data)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("Unexpected fields", str(response.data))
+
+    def test_admin_cannot_update_phone_number_via_admin(self) -> None:
+        """
+        В админке поле phone_number должно отображаться, но быть недоступным для редактирования.
+        Даже при отправке нового значения оно не должно измениться.
+        """
+        self.client.login(username=self.phone_admin, password=self.password)
+        admin_change_url = reverse('admin:transfer_auth_user_change', args=[self.user.id])
+        original_phone = self.user.phone_number
+        data = {
+            'phone_number': '+70000000000',
+            'first_name': 'AdminEdited',
+            'last_name': self.user.last_name,
+            'chat_id': '3333',
+            'password': self.user.password,
+        }
+        response = self.client.post(admin_change_url, data)
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.phone_number, original_phone)
+        self.assertEqual(self.user.first_name, 'AdminEdited')
+        self.assertEqual(self.user.chat_id, '3333')
+

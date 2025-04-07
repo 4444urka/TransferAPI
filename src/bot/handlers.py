@@ -47,11 +47,11 @@ def setup_handlers(bot):
                 'refresh': tokens['refresh'],
                 'phone': phone
             })
-            # ApiClient.update_chat_id(tokens['access'], message.chat.id)
+            user_id = ApiClient.get_user_info(tokens["access"])['id']
+            ApiClient.update_chat_id(tokens['access'], user_id, message.chat.id)
             bot.send_message(message.chat.id, f"✅ Авторизация успешна!", reply_markup=main_menu())
         else:
             bot.send_message(message.chat.id, "❌ Ошибка авторизации", reply_markup=auth_keyboard())
-
 
 
     @bot.message_handler(commands=['logout'])
@@ -61,15 +61,16 @@ def setup_handlers(bot):
         
         try:
             # # Очищаем данные в Django
-            # if user_data and user_data.get('access'):
-            #     ApiClient.clear_chat_id(user_data['access'])
+            if user_data and user_data.get('access'):
+                user_id = ApiClient.get_user_info(user_data["access"])['id']
+                ApiClient.update_chat_id(user_data['access'], user_id)
             
             # Удаляем данные из Redis
             config.delete_user_data(chat_id)
             
             bot.send_message(chat_id, "✅ Все ваши данные удалены!")
-        except Exception as e:
-            bot.send_message(chat_id, "❌ Ошибка при выходе: " + str(e))
+        except:
+            bot.send_message(chat_id, "❌ Ошибка при выходе!")
 
 
     def format_bookings_response(response):
@@ -92,12 +93,13 @@ def setup_handlers(bot):
 
                 # Сборка сообщения
                 text = (
-                    f"🔹 Бронирование #{idx}\n"
+                    f"🚖 Бронирование #{idx}\n"
                     f"📅 Дата: {booking_date}\n"
-                    f"📍 Откуда: {booking['pickup_location']}\n"
+                    f"📍  Откуда: {booking['pickup_location']}\n"
                     f"🏁 Куда: {booking['dropoff_location']}\n"
                     f"💵 Стоимость: {price}\n"
-                    f"Статус: {status}"
+                    # f"💺 Места: {seats_info if seats_info else 'Не указаны'}\n"
+                    f"🔹 Статус: {status}"
                 )
                 formatted.append(text)
 

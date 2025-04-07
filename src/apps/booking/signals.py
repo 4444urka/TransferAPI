@@ -1,8 +1,15 @@
-from django.db.models.signals import m2m_changed, pre_delete, pre_save
+from django.db.models.signals import m2m_changed, pre_delete, pre_save, post_save
 from django.dispatch import receiver
-
+import logging
+from django.conf import settings
 from apps.booking.models import Booking
 from apps.seat.models import TripSeat
+import requests
+from datetime import datetime
+from django.utils import timezone
+from django.db import transaction
+
+logger = logging.getLogger(__name__)
 
 
 @receiver(m2m_changed, sender=Booking.trip_seats.through)
@@ -54,3 +61,45 @@ def release_seats_on_deactivation(sender, instance, **kwargs):
                     trip_seat.save()
         except Booking.DoesNotExist:
             pass
+
+def format_booking(booking):
+
+    local_tz = timezone.get_current_timezone()
+    local_time = booking.trip.departure_time.astimezone(local_tz)
+
+    dt = local_time.strftime("%d.%m.%Y %H:%M")
+    status = "✅ Активно" if booking.is_active else "❌ Отменено"
+    price = booking.total_price
+    price_str = f"{int(price)} руб." if price == int(price) else f"{price:.2f} руб."
+    seats_info = ", ".join([str(ts.seat.seat_number) for ts in booking.trip_seats.all()])
+    text = (
+        f"🚖 Новое бронирование создано!\n"
+        f"📅 Дата: {dt}\n"
+        f"📍 Откуда: {booking.pickup_location}\n"
+        f"🏁 Куда: {booking.dropoff_location}\n"
+        f"💵 Стоимость: {price_str}\n"
+        f"💺 Места: {seats_info if seats_info else 'Не указаны'}\n"
+        f"🔹 Статус: {status}"
+    )
+    return text
+
+def send_telegram_message(chat_id, text):
+    bot_token = settings.TELEGRAM_BOT_TOKEN
+    url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
+    data = {'chat_id': chat_id, 'text': text}
+    try:
+        response = requests.post(url, data=data)
+        response.raise_for_status()
+    except requests.exceptions.RequestException as e:
+        print(f"Ошибка отправки сообщения: {e}")
+
+@receiver(post_save, sender=Booking)
+def booking_post_save(sender, instance, created, **kwargs):
+    if created:
+        transaction.on_commit(lambda: handle_new_booking(instance))
+
+def handle_new_booking(booking):
+    user = booking.user
+    if user.chat_id:
+        message = format_booking(booking)
+        send_telegram_message(user.chat_id, message)

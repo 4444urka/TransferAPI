@@ -28,4 +28,24 @@ class ApiClient:
         )
         return response.json() if response.ok else None
     
+    @staticmethod
+    def update_chat_id(access_token, user_id, chat_id=''):
+        data={
+            "chat_id": chat_id
+        }
+        response = requests.patch(
+            config.USER_UPDATE_URL(user_id=user_id),
+            data,
+            headers={"Authorization": f"Bearer {access_token}"}
+        )
+        return response.json() if response.ok else None
+    
+    @staticmethod
+    def get_user_info(access_token):
+        response = requests.get(
+            config.GET_USER_INFO_URL,
+            headers={"Authorization": f"Bearer {access_token}"}
+        )
+        return response.json() if response.ok else None
+
     

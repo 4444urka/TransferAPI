@@ -6,7 +6,12 @@ class Config:
     
     TOKEN_URL = f"{API_BASE}/auth/token/"
     REFRESH_URL = f"{API_BASE}/auth/token/refresh/"
+    GET_USER_INFO_URL = f"{API_BASE}/auth/users/get_user_info/"
+
     BOOKINGS_URL = f"{API_BASE}/api/bookings/"
+
+    def USER_UPDATE_URL(self, user_id):
+        return f"{self.API_BASE}/auth/users/{user_id}/update/"
     
     @staticmethod
     def store_user_data(chat_id, data):

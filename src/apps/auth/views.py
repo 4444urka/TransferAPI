@@ -48,11 +48,13 @@ class UserListView(generics.ListAPIView):
     
 class UpdateUserView(generics.GenericAPIView):
     user_service = UserService()
-    queryset = user_service.get_all_users()
     serializer_class = UserUpdateSerializer
     permission_classes = [IsAuthenticated, HasUserPermissions]
     lookup_field = 'id'
     lookup_url_kwarg = 'user_id'
+
+    def get_queryset(self):
+        return self.user_service.get_all_users()
 
     @swagger_auto_schema(
         operation_description="Обновление данных пользователя",

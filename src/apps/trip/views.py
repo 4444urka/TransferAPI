@@ -10,7 +10,7 @@ from django.utils.decorators import method_decorator
 from rest_framework import status
 
 from .filters import TripFilter
-from .models import Trip, City
+from .models import Trip
 from .permissions import HasTripPermission
 from .serializers import TripListSerializer, TripDetailSerializer, TripCreateUpdateSerializer
 from .services import TripService

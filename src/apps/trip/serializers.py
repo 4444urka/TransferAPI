@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from apps.trip.models import Trip, City
 from apps.vehicle.serializers import VehicleMinSerializer
-from apps.seat.models import TripSeat
+from .services import TripService
 
 
 class CitySerializer(serializers.ModelSerializer):
@@ -24,21 +24,17 @@ class TripListSerializer(serializers.ModelSerializer):
             'default_ticket_price', 'vehicle', 'available_seats', 'duration'
         )
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.trip_service = TripService()
+
     def get_available_seats(self, obj):
         """Получение количества свободных мест для поездки"""
-        total_seats = obj.vehicle.total_seats
-        booked_seats = TripSeat.objects.filter(
-            trip=obj,
-            is_booked=True
-        ).count()
-        return total_seats - booked_seats
+        return self.trip_service.get_available_seats(obj)
 
     def get_duration(self, obj):
         """Получение длительности поездки в формате часы:минуты"""
-        duration = obj.arrival_time - obj.departure_time
-        hours = duration.seconds // 3600
-        minutes = (duration.seconds % 3600) // 60
-        return f"{hours}ч {minutes}мин"
+        return self.trip_service.get_duration(obj)
 
 
 class TripDetailSerializer(serializers.ModelSerializer):
@@ -55,16 +51,17 @@ class TripDetailSerializer(serializers.ModelSerializer):
             'default_ticket_price', 'vehicle', 'available_seats', 'duration'
         )
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.trip_service = TripService()
+
     def get_available_seats(self, obj):
         """Получение количества свободных мест для поездки"""
-        return TripSeat.objects.filter(trip=obj, is_booked=False).count()
+        return self.trip_service.get_available_seats(obj)
 
     def get_duration(self, obj):
         """Получение длительности поездки в формате часы:минуты"""
-        duration = obj.arrival_time - obj.departure_time
-        hours = duration.seconds // 3600
-        minutes = (duration.seconds % 3600) // 60
-        return f"{hours}ч {minutes}мин"
+        return self.trip_service.get_duration(obj)
 
 
 # Сериализатор для создания/редактирования поездок

@@ -5,16 +5,17 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from django_filters import rest_framework as django_filters
-from django.core.cache import cache
 from django.views.decorators.cache import cache_page
 from django.utils.decorators import method_decorator
+from rest_framework import status
 
 from .filters import TripFilter
-from .models import Trip, City
+from .models import Trip
 from .permissions import HasTripPermission
 from .serializers import TripListSerializer, TripDetailSerializer, TripCreateUpdateSerializer
+from .services import TripService
 from apps.seat.models import TripSeat
-from apps.seat.services.trip_seat_service import TripSeatService
+from apps.seat.serializers import TripSeatSerializer
 
 class TripViewSet(viewsets.ModelViewSet):
     """
@@ -38,7 +39,9 @@ class TripViewSet(viewsets.ModelViewSet):
     ordering_fields = ['departure_time', 'arrival_time', 'default_ticket_price']
     ordering = ['departure_time']
 
-    trip_seat_service = TripSeatService()
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.trip_service = TripService()
 
     @swagger_auto_schema(
         operation_description="Получение списка доступных поездок с возможностью фильтрации по множеству параметров",
@@ -92,30 +95,33 @@ class TripViewSet(viewsets.ModelViewSet):
         tags=["Поездки"]
     )
     def create(self, request, *args, **kwargs):
-        response = super().create(request, *args, **kwargs)
-        # инвалидируем кэш после создания новой поездки
-        cache.delete_pattern('trip_*')
-        return response
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        trip = self.trip_service.create_trip(serializer.validated_data)
+        serializer = self.get_serializer(trip)
+        headers = self.get_success_headers(serializer.data)
+        return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
 
     @swagger_auto_schema(
         operation_description="Обновление информации о поездке. Доступно только администраторам.",
         operation_summary="Обновление поездки",
         tags=["Поездки"]
     )
-    def update(self, request, *args, **kwargs): # требует все поля для обновления
-        response = super().update(request, *args, **kwargs)
-        cache.delete_pattern('trip_*')
-        return response
+    def update(self, request, *args, **kwargs):
+        partial = kwargs.pop('partial', False)
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        serializer.is_valid(raise_exception=True)
+        trip = self.trip_service.update_trip(instance, serializer.validated_data)
+        return Response(serializer.data)
 
     @swagger_auto_schema(
         operation_description="Частичное обновление информации о поездке. Доступно только администраторам.",
         operation_summary="Частичное обновление поездки",
         tags=["Поездки"]
     )
-    def partial_update(self, request, *args, **kwargs): # позволяет обновлять только указанные поля
-        response = super().partial_update(request, *args, **kwargs)
-        cache.delete_pattern('trip_*')
-        return response
+    def partial_update(self, request, *args, **kwargs):
+        return self.update(request, *args, partial=True, **kwargs)
 
     @swagger_auto_schema(
         operation_description="Удаление поездки. Доступно только администраторам.",
@@ -123,9 +129,9 @@ class TripViewSet(viewsets.ModelViewSet):
         tags=["Поездки"]
     )
     def destroy(self, request, *args, **kwargs):
-        response = super().destroy(request, *args, **kwargs)
-        cache.delete_pattern('trip_*')
-        return response
+        instance = self.get_object()
+        self.trip_service.delete_trip(instance)
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
     def get_serializer_class(self):
         if self.action in ['create', 'update', 'partial_update']:
@@ -143,12 +149,9 @@ class TripViewSet(viewsets.ModelViewSet):
         """
         return [HasTripPermission()]
 
-    def get_queryset(self): # сюда можно добавлять фильтрации
+    def get_queryset(self):
         """Базовая фильтрация"""
-        queryset = Trip.objects.select_related(
-            'origin', 'destination', 'vehicle'
-        )
-        return queryset
+        return self.trip_service.get_trip_queryset()
 
     @swagger_auto_schema(
         operation_description="Получение списка городов",
@@ -159,23 +162,21 @@ class TripViewSet(viewsets.ModelViewSet):
     @method_decorator(cache_page(60 * 60))  # кэш на 1 час, так как список городов меняется редко
     def cities(self, request):
         """Получение списка городов для фильтрации"""
-        cities = City.objects.all()
+        cities = self.trip_service.get_cities()
         return Response({
             'origin_cities': [{'id': c.id, 'name': c.name} for c in cities],
             'destination_cities': [{'id': c.id, 'name': c.name} for c in cities]
         })
 
     @swagger_auto_schema(
-        operation_description="Получение списка свободных мест на поездке",
-        operation_summary="Свободные места",
+        operation_description="Получение списка мест в поездке",
+        operation_summary="Список мест",
         tags=["Поездки"]
     )
     @action(detail=True, methods=['get'])
     def seats(self, request, pk=None):
-        """Получение списка всех мест в поездке (и занятых, и свободных)"""
+        """Получение списка мест в поездке"""
         trip = self.get_object()
-        seats_data = self.trip_seat_service.get_seats_list(trip)
-
-        return Response({
-            'seats': seats_data
-        })
+        seats = TripSeat.objects.filter(trip=trip).select_related('seat')
+        serializer = TripSeatSerializer(seats, many=True)
+        return Response(serializer.data)

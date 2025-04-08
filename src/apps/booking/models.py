@@ -1,15 +1,12 @@
-import re
 from decimal import Decimal
 from django.db import models
 from django.core.exceptions import ValidationError
 
 from apps.auth.models import User
 from apps.payment.models import Payment
-from apps.seat.models import Seat, TripSeat
+from apps.seat.models import TripSeat
 from apps.trip.models import Trip
-from apps.vehicle.models import Vehicle
-from utils.find_street_by_name import find_street_by_name
-from utils.street_validate_regex import street_validate_regex
+from utils.address import find_street_by_name
 
 
 class Booking(models.Model):
@@ -86,79 +83,36 @@ class Booking(models.Model):
         ordering = ['booking_datetime', 'is_active']
 
     def clean(self):
-        """Валидация модели бронирования"""
+        super().clean()
+        # Проверяем и изменяем pickup_location
+        if self.pickup_location and self.trip and self.trip.origin:
+            try:
+                refactored = find_street_by_name(self.pickup_location, self.trip.origin.name)
+                if refactored:
+                    self.pickup_location = refactored
+                else:
+                    raise ValidationError({
+                        'pickup_location': f"Адрес {self.pickup_location} не найден в {self.trip.origin.name}"
+                    })
+            except Exception as e:
+                raise ValidationError({
+                    'pickup_location': f"Ошибка обработки адреса {self.pickup_location}: {str(e)}"
+                })
 
-        # Проверяем наличие пользователя
-        if not self.user:
-            raise ValidationError("Пользователь обязателен")
-
-        if not self.trip:
-            return  # Пропускаем проверки, если рейс не указан
-
-        # Проверка pickup_location только если оно указано
-        if self.pickup_location and self.pickup_location.strip():
-            # Проверяем, соответствует ли адрес уже нашему формату
-            if not re.match(street_validate_regex, self.pickup_location):
-                try:
-                    refactored_pickup_location = find_street_by_name(self.pickup_location, self.trip.origin.name)
-                    if refactored_pickup_location:
-                        self.pickup_location = refactored_pickup_location
-                    else:
-                        raise ValidationError(
-                            f"Не найдена локация '{self.pickup_location}' в городе {self.trip.origin.name}")
-                except Exception as e:
-                    raise ValidationError(f"Ошибка проверки локации получения: {str(e)}")
-
-        # То же самое для dropoff_location
-        if self.dropoff_location and self.dropoff_location.strip():
-            # Проверяем, соответствует ли адрес уже нашему формату
-            if not re.match(street_validate_regex, self.dropoff_location):
-                try:
-                    refactored_dropoff_location = find_street_by_name(self.dropoff_location, self.trip.destination.name)
-                    if refactored_dropoff_location:
-                        self.dropoff_location = refactored_dropoff_location
-                    else:
-                        raise ValidationError(
-                            f"Не найдена локация '{self.dropoff_location}' в городе {self.trip.destination.name}")
-                except Exception as e:
-                    raise ValidationError(f"Ошибка проверки локации высадки: {str(e)}")
-
-        # Вместо пропуска валидации для новых экземпляров, проводим проверку напрямую
-        if hasattr(self, '_seats_to_validate'):
-            seats_to_validate = self._seats_to_validate
-            for seat in seats_to_validate:
-                # Проверяем принадлежит ли место транспортному средству рейса
-                if seat.vehicle != self.trip.vehicle:
-                    raise ValidationError(f"Место {seat} не соответствует транспортному средству рейса")
-
-                # Проверяем, не занято ли место
-                if seat.is_booked:
-                    raise ValidationError(f"Место {seat} уже забронировано")
-            return
-
-        # Для существующих экземпляров
-        if self.pk:
-            for seat in self.seats.all():
-                # Проверяем принадлежит ли место транспортному средству рейса
-                if seat.vehicle != self.trip.vehicle:
-                    raise ValidationError(f"Место {seat} не соответствует транспортному средству рейса")
-
-                # Проверяем, не занято ли место в другом бронировании
-                if seat.is_booked:
-                    current_booking_seats = Booking.objects.get(pk=self.pk).seats.all()
-                    if seat not in current_booking_seats:
-                        raise ValidationError(f"Место {seat} уже забронировано")
-
-            # Проверка соответствия суммы платежа общей стоимости
-            if self.payment:
-                calculated_total = self.total_price
-                if self.payment.amount != calculated_total:
-                    raise ValidationError(
-                        f"Сумма платежа ({self.payment.amount}) не соответствует общей стоимости ({calculated_total})"
-                    )
+        # То же для dropoff_location
+        if self.dropoff_location and self.trip and self.trip.destination:
+            try:
+                refactored = find_street_by_name(self.dropoff_location, self.trip.destination.name)
+                if refactored:
+                    self.dropoff_location = refactored
+                else:
+                    raise ValidationError({
+                        'dropoff_location': f"Адрес {self.dropoff_location} не найден в {self.trip.destination.name}"
+                    })
+            except Exception as e:
+                raise ValidationError({
+                    'dropoff_location': f"Ошибка обработки адреса {self.dropoff_location}: {str(e)}"
+                })
 
     def save(self, *args, **kwargs):
-        # Вызываем валидацию перед сохранением
-        self.full_clean()
-        # Сохраняем объект
         super().save(*args, **kwargs)

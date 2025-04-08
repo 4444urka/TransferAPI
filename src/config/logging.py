@@ -29,5 +29,11 @@ LOGGING = {
             'level': 'INFO',
             'propagate': True,
         },
+        # Добавьте этот блок
+        'utils': {
+            'handlers': ['console'],
+            'level': 'DEBUG',  # Уровень DEBUG для отображения всех сообщений
+            'propagate': True,
+        },
     },
-} 
+}

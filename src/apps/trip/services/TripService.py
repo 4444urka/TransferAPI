@@ -1,8 +1,6 @@
 import logging
 from django.core.cache import cache
-from django.db.models import Count, Q
-from django.utils import timezone
-from .models import Trip, City
+from ..models import Trip, City
 from apps.seat.models import TripSeat
 
 logger = logging.getLogger(__name__)

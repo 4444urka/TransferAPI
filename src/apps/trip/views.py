@@ -13,7 +13,7 @@ from .filters import TripFilter
 from .models import Trip
 from .permissions import HasTripPermission
 from .serializers import TripListSerializer, TripDetailSerializer, TripCreateUpdateSerializer
-from .services import TripService
+from .services.TripService import TripService
 from apps.seat.models import TripSeat
 from apps.seat.serializers import TripSeatSerializer
 
@@ -97,10 +97,44 @@ class TripViewSet(viewsets.ModelViewSet):
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        trip = self.trip_service.create_trip(serializer.validated_data)
-        serializer = self.get_serializer(trip)
-        headers = self.get_success_headers(serializer.data)
-        return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+        
+        # Получаем проверенные данные
+        validated_data = serializer.validated_data.copy()
+        
+        # Обрабатываем данные о городах
+        if 'origin_name' in validated_data:
+            origin_name = validated_data.pop('origin_name')
+            try:
+                from .services.CityService import CityService
+                city_service = CityService()
+                origin = city_service.get_by_name(origin_name)
+                validated_data['origin'] = origin
+            except Exception as e:
+                return Response(
+                    {"error": f"Не удалось найти город отправления: {str(e)}"}, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+                
+        if 'destination_name' in validated_data:
+            destination_name = validated_data.pop('destination_name')
+            try:
+                from .services.CityService import CityService
+                city_service = CityService()
+                destination = city_service.get_by_name(destination_name)
+                validated_data['destination'] = destination
+            except Exception as e:
+                return Response(
+                    {"error": f"Не удалось найти город назначения: {str(e)}"}, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+        
+        # Создаем поездку через сервис
+        trip = self.trip_service.create_trip(validated_data)
+        
+        # Возвращаем созданную поездку
+        result_serializer = TripDetailSerializer(trip)
+        headers = self.get_success_headers(result_serializer.data)
+        return Response(result_serializer.data, status=status.HTTP_201_CREATED, headers=headers)
 
     @swagger_auto_schema(
         operation_description="Обновление информации о поездке. Доступно только администраторам.",

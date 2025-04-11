@@ -94,6 +94,9 @@ class Booking(models.Model):
 
         if not self.trip:
             return  # Пропускаем проверки, если рейс не указан
+        
+        if self.trip and not self.trip.is_bookable:
+            raise ValidationError("Бронирование недоступно для этой поездки")
 
         # Проверка pickup_location только если оно указано
         if self.pickup_location and self.pickup_location.strip():

@@ -15,9 +15,9 @@ class TripAdminForm(forms.ModelForm):
 
 @admin.register(Trip)
 class TripAdmin(admin.ModelAdmin):
-    list_display = ('vehicle', 'origin', 'destination', 'departure_time', 'arrival_time', 'default_ticket_price')
-    list_filter = ('vehicle', 'origin', 'destination', 'departure_time')
-    search_fields = ('vehicle__license_plate', 'origin__name', 'destination__name')
+    list_display = ('vehicle', 'origin', 'destination', 'departure_time', 'arrival_time', 'default_ticket_price', 'is_bookable', 'booking_cutoff_minutes')
+    list_filter = ('vehicle', 'origin', 'destination', 'departure_time', 'is_bookable')
+    search_fields = ('vehicle__license_plate', 'origin__name', 'destination__name', 'is_bookable')
     fieldsets = (
         (None, {
             'fields': ('vehicle', 'origin', 'destination')
@@ -29,6 +29,11 @@ class TripAdmin(admin.ModelAdmin):
         ('Цена', {
             'fields': ('default_ticket_price',)
         }),
+        ('Дополнительные данные', {
+            'fields': ('is_bookable', 'booking_cutoff_minutes'),
+            'description': 'Поля, связанные с возможностью бронирования: is_bookable определяет, можно ли сделать бронирование, а booking_cutoff_minutes – время до отправления, после которого бронирование закрывается.'
+
+        })
     )
 
     def formatted_departure(self, obj):

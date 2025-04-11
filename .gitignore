@@ -8,3 +8,8 @@
 
 # But keep the __init__.py files
 !**/migrations/__init__.py
+
+# celery
+celerybeat-schedule
+celerybeat-schedule-shm
+celerybeat-schedule-wal

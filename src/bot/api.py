@@ -23,7 +23,15 @@ class ApiClient:
     @staticmethod
     def get_bookings(access_token):
         response = requests.get(
-            config.BOOKINGS_URL,
+            config.ACTIVE_BOOKINGS_URL,
+            headers={"Authorization": f"Bearer {access_token}"}
+        )
+        return response.json() if response.ok else None
+    
+    @staticmethod
+    def get_trips(access_token):
+        response = requests.get(
+            config.TRIPS_URL,
             headers={"Authorization": f"Bearer {access_token}"}
         )
         return response.json() if response.ok else None

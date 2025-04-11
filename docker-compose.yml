@@ -43,6 +43,27 @@ services:
     depends_on:
       - web
 
+  celery:
+    build: .
+    command: celery -A config worker --loglevel=info
+    volumes:
+      - .:/app
+    environment:
+      - PYTHONPATH=/app/src
+    depends_on:
+      - redis
+      - web
+
+  celery-beat:
+    build: .
+    command: celery -A config beat
+    volumes:
+      - .:/app
+    environment:
+      - PYTHONPATH=/app/src
+    depends_on:
+      - redis
+      - web
 volumes:
   postgres_data:
   redis_data:

@@ -31,6 +31,8 @@ ALLOWED_HOSTS = ['localhost', '127.0.0.1', 'web']
 from .logging import LOGGING
 
 TELEGRAM_BOT_TOKEN='7553600402:AAFvb8DvJQXpCsrmoABNtw0qw-q8R6izMNw'
+
+
 # Application definition
 
 INSTALLED_APPS = [
@@ -213,6 +215,16 @@ SWAGGER_SETTINGS = {
 
 
 AUTH_USER_MODEL = 'transfer_auth.User'
+
+# Selery setup 
+CELERY_BROKER_URL = 'redis://redis:6379/1'
+CELERY_RESULT_BACKEND = 'redis://redis:6379/1'
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_TASK_TRACK_STARTED = True
+# CELERY_TASK_TIME_LIMIT = 30 * 60
+CELERY_ACCEPT_CONTENT = ['application/json']
+# CELERY_TIMEZONE = 'Europe/Moscow'
 
 APPEND_SLASH = False
 

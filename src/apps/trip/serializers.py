@@ -21,7 +21,8 @@ class TripListSerializer(serializers.ModelSerializer):
         model = Trip
         fields = (
             'id', 'origin', 'destination', 'departure_time', 'arrival_time',
-            'default_ticket_price', 'vehicle', 'available_seats', 'duration'
+            'default_ticket_price', 'vehicle', 'available_seats', 'duration',
+            'booking_cutoff_minutes', 'is_bookable'
         )
 
     def get_available_seats(self, obj):
@@ -52,7 +53,8 @@ class TripDetailSerializer(serializers.ModelSerializer):
         model = Trip
         fields = (
             'id', 'origin', 'destination', 'departure_time', 'arrival_time',
-            'default_ticket_price', 'vehicle', 'available_seats', 'duration'
+            'default_ticket_price', 'vehicle', 'available_seats', 'duration',
+            'booking_cutoff_minutes', 'is_bookable'
         )
 
     def get_available_seats(self, obj):
@@ -73,5 +75,6 @@ class TripCreateUpdateSerializer(serializers.ModelSerializer):
         model = Trip
         fields = (
             'id', 'vehicle', 'origin', 'destination',
-            'departure_time', 'arrival_time', 'default_ticket_price'
+            'departure_time', 'arrival_time', 'default_ticket_price',
+            'booking_cutoff_minutes', 'is_bookable'
         )

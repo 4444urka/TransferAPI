@@ -1,4 +1,4 @@
-from django.db.models.signals import m2m_changed, pre_delete, pre_save, post_save
+from django.db.models.signals import m2m_changed, pre_delete, pre_save, post_save, post_delete
 from django.dispatch import receiver
 import logging
 from django.conf import settings
@@ -8,6 +8,8 @@ import requests
 from datetime import datetime
 from django.utils import timezone
 from django.db import transaction
+from django.core.cache import cache
+
 
 logger = logging.getLogger(__name__)
 
@@ -103,3 +105,27 @@ def handle_new_booking(booking):
     if user.chat_id:
         message = format_booking(booking)
         send_telegram_message(user.chat_id, message)
+
+
+
+def invalidate_booking_cache(user_id):
+    cache_key = f"booking_detailed_{user_id}"
+    cache.delete(cache_key)
+
+@receiver(post_save, sender=Booking)
+def booking_updated(sender, instance, **kwargs):
+    """
+    При сохранении бронирования инвалидируем кэш детальной информации для пользователя.
+    """
+    if instance.user:
+        logger.debug(f"Invalidating booking cache for user {instance.user.id}")
+        invalidate_booking_cache(instance.user.id)
+
+@receiver(post_delete, sender=Booking)
+def booking_deleted(sender, instance, **kwargs):
+    """
+    При удалении бронирования инвалидируем кэш детальной информации для пользователя.
+    """
+    if instance.user:
+        logger.debug(f"Invalidating booking cache for user {instance.user.id}")
+        invalidate_booking_cache(instance.user.id)

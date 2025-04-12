@@ -140,17 +140,18 @@ class Booking(models.Model):
             return
 
         # Для существующих экземпляров
-        if self.pk:
-            for seat in self.seats.all():
-                # Проверяем принадлежит ли место транспортному средству рейса
-                if seat.vehicle != self.trip.vehicle:
-                    raise ValidationError(f"Место {seat} не соответствует транспортному средству рейса")
+        if self.pk:  # для существующих экземпляров
+            for trip_seat in self.trip_seats.all():
+                # Проверка принадлежности места транспортному средству рейса
+                if trip_seat.seat.vehicle != self.trip.vehicle:
+                    raise ValidationError(f"Место {trip_seat.seat} не соответствует транспортному средству рейса")
 
-                # Проверяем, не занято ли место в другом бронировании
-                if seat.is_booked:
-                    current_booking_seats = Booking.objects.get(pk=self.pk).seats.all()
-                    if seat not in current_booking_seats:
-                        raise ValidationError(f"Место {seat} уже забронировано")
+                # Проверка, не занято ли место в другом бронировании
+                if trip_seat.is_booked:
+                    current_booking_seats = Booking.objects.get(pk=self.pk).trip_seats.all()
+                    if trip_seat not in current_booking_seats:
+                        raise ValidationError(f"Место {trip_seat.seat} уже забронировано")
+
 
             # Проверка соответствия суммы платежа общей стоимости
             if self.payment:

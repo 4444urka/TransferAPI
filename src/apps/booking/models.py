@@ -1,15 +1,12 @@
-import re
 from decimal import Decimal
 from django.db import models
 from django.core.exceptions import ValidationError
 
 from apps.auth.models import User
 from apps.payment.models import Payment
-from apps.seat.models import Seat, TripSeat
+from apps.seat.models import TripSeat
 from apps.trip.models import Trip
-from apps.vehicle.models import Vehicle
-from utils.find_street_by_name import find_street_by_name
-from utils.street_validate_regex import street_validate_regex
+from utils.address import find_street_by_name
 
 
 class Booking(models.Model):
@@ -162,7 +159,4 @@ class Booking(models.Model):
                     )
 
     def save(self, *args, **kwargs):
-        # Вызываем валидацию перед сохранением
-        self.full_clean()
-        # Сохраняем объект
         super().save(*args, **kwargs)

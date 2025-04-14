@@ -78,7 +78,7 @@ class TripCreateUpdateSerializer(serializers.ModelSerializer):
         fields = (
             'id', 'vehicle', 'origin', 'destination',
             'departure_time', 'arrival_time', 'default_ticket_price',
-            'origin_name', 'destination_name'
+            'origin_name', 'destination_name', 'booking_cutoff_minutes', 'is_bookable'
         )
         read_only_fields = ('origin', 'destination')
         

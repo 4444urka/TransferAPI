@@ -11,7 +11,6 @@ def register_auth_handlers(bot):
     @bot.message_handler(content_types=['contact'])
     def handle_contact(message):
         phone = f"+{message.contact.phone_number}"
-        bot.send_message(message.chat.id, f"Отправляем номер телефона... {phone}")
         msg = bot.send_message(message.chat.id, "Введите пароль:", reply_markup=types.ReplyKeyboardRemove())
         bot.register_next_step_handler(msg, lambda m: process_password(m, phone))
 

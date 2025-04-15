@@ -48,6 +48,12 @@ class Trip(models.Model):
         max_digits=10, decimal_places=2, 
         default=0, verbose_name="Цена билета"
         )
+    
+    is_bookable = models.BooleanField(default=True, verbose_name="Доступна для бронирования")
+    booking_cutoff_minutes = models.PositiveIntegerField(
+        default=30,
+        verbose_name="Время до начала поездки за которое нельзя бронировать поездку (в минутах)",
+    )
 
     class Meta:
         verbose_name = "Поездка"
@@ -94,6 +100,13 @@ class Trip(models.Model):
         if self.default_ticket_price < 0:
             raise ValidationError({
                 'default_ticket_price': 'Цена не может быть отрицательной'
+            })
+        
+        # Проверка времени до отправления
+        time_until_departure = (self.departure_time - timezone.now()).total_seconds() / 60
+        if self.booking_cutoff_minutes > time_until_departure:
+            raise ValidationError({
+                'booking_cutoff_minutes': 'Время не может быть больше оставшегося времени до отправления'
             })
 
     def save(self, *args, **kwargs):

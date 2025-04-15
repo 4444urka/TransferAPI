@@ -30,6 +30,40 @@ services:
       - db
       - redis
 
+  bot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: telegram_bot
+    command: python src/bot/main.py
+    environment:
+      - PYTHONPATH=/app/src
+    volumes:
+      - .:/app
+    depends_on:
+      - web
+
+  celery:
+    build: .
+    command: celery -A config worker --loglevel=info
+    volumes:
+      - .:/app
+    environment:
+      - PYTHONPATH=/app/src
+    depends_on:
+      - redis
+      - web
+
+  celery-beat:
+    build: .
+    command: celery -A config beat
+    volumes:
+      - .:/app
+    environment:
+      - PYTHONPATH=/app/src
+    depends_on:
+      - redis
+      - web
 volumes:
   postgres_data:
   redis_data:

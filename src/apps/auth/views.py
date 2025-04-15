@@ -2,11 +2,13 @@ from drf_yasg.utils import swagger_auto_schema
 
 from .services import UserService
 from .permissions import HasUserPermissions
-from .serializers import UserRegistrationSerializer, MyTokenObtainPairSerializer, UserSerializer
+from .serializers import UserRegistrationSerializer, MyTokenObtainPairSerializer, UserSerializer, UserUpdateSerializer
 from rest_framework import generics, status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from rest_framework.views import APIView
 from .models import User
+from rest_framework.exceptions import PermissionDenied
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
 
@@ -33,7 +35,7 @@ class UserListView(generics.ListAPIView):
     permission_classes = [IsAuthenticated, HasUserPermissions]
 
     def get_queryset(self):
-        return self.user_service.get_all_users()
+        return list(self.user_service.get_all_users())
 
     @swagger_auto_schema(
         operation_description="Получение списка пользователей. Администраторы получают всех, обычные пользователи - только себя.",
@@ -42,7 +44,29 @@ class UserListView(generics.ListAPIView):
     )
     def get(self, request, *args, **kwargs):
         return super().get(request, *args, **kwargs)
-        
+    
+    
+class UpdateUserView(generics.GenericAPIView):
+    user_service = UserService()
+    serializer_class = UserUpdateSerializer
+    permission_classes = [IsAuthenticated, HasUserPermissions]
+    lookup_field = 'id'
+    lookup_url_kwarg = 'user_id'
+
+    def get_queryset(self):
+        return self.user_service.get_all_users()
+
+    @swagger_auto_schema(
+        operation_description="Обновление данных пользователя",
+        operation_summary="Обновление пользователя",
+        tags=["Пользователи"],
+    )
+    def patch(self, request, *args, **kwargs):
+        user_to_update = self.get_object()
+        serializer = self.get_serializer(instance=user_to_update, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        updated_user = serializer.save() # вызов update_user инкапсулирован в сериализаторе
+        return Response(self.get_serializer(updated_user).data, status=status.HTTP_200_OK)
 
 
 class RegistrationUserView(generics.CreateAPIView):

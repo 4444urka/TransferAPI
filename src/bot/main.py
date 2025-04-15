@@ -10,12 +10,17 @@ from bot.handlers.booking_handlers import register_booking_handlers
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings")
 django.setup()
 
-bot = TeleBot(config.BOT_TOKEN)
 logger = logging.getLogger(__name__)
 
-def start():
+def setup_bot():
+    # Инициализируем бот, но не запускаем его
+    bot = TeleBot(config.BOT_TOKEN)
     register_auth_handlers(bot)
     register_booking_handlers(bot)
+    return bot
+
+def start_bot():
+    bot = setup_bot()
     print("Telegram bot started...")
     while True:
         try:
@@ -25,4 +30,4 @@ def start():
             time.sleep(5)
 
 if __name__ == "__main__":
-    start()
+    start_bot()

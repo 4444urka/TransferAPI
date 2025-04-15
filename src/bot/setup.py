@@ -1,7 +1,10 @@
 from django.core.cache import cache
 
+from config.settings import TELEGRAM_BOT_TOKEN
+
+
 class Config:
-    BOT_TOKEN = '7553600402:AAFvb8DvJQXpCsrmoABNtw0qw-q8R6izMNw'
+    BOT_TOKEN = TELEGRAM_BOT_TOKEN
     API_BASE = "http://web:8000"
     
     TOKEN_URL = f"{API_BASE}/auth/token/"

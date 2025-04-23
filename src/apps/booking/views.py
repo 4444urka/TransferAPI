@@ -6,12 +6,16 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from django_filters.rest_framework import DjangoFilterBackend
 from django.core.cache import cache
+from django.http import JsonResponse
+from django.shortcuts import get_object_or_404
 
 import logging
 
 from .permissions import HasBookingPermission
 from .serializers import BookingSerializer, BookingDetailSerializer
 from .services import BookingService
+from apps.trip.models import Trip
+from apps.seat.models import TripSeat
 
 logger = logging.getLogger(__name__)
 
@@ -174,3 +178,32 @@ class BookingViewSet(viewsets.ModelViewSet):
             return Response({"detail": "Бронирование успешно отменено"})
         except ValidationError as e:
             return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+def get_trip_seats(request):
+    """
+    Возвращает список TripSeat (id и строковое представление) 
+    для указанного trip_id в формате JSON.
+    """
+    trip_id = request.GET.get('trip_id')
+    data = {'seats': []} # По умолчанию пустой список
+
+    if trip_id:
+        try:
+            # Проверяем, существует ли поездка
+            trip = get_object_or_404(Trip, pk=trip_id)
+            # Получаем все TripSeat для этой поездки
+            # Возвращаем все места: и свободные, и забронированные, 
+            # чтобы пользователь видел всю картину
+            trip_seats = TripSeat.objects.filter(trip=trip).order_by('seat__seat_number')
+            
+            # Формируем список для JSON
+            data['seats'] = [
+                {'id': ts.pk, 'text': str(ts)}
+                for ts in trip_seats
+            ]
+        except ValueError:
+            # trip_id не является числом
+            pass # Возвращаем пустой список
+        # get_object_or_404 обработает случай, если Trip не найден
+
+    return JsonResponse(data)

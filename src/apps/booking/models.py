@@ -147,14 +147,5 @@ class Booking(models.Model):
                     if trip_seat not in current_booking_seats:
                         raise ValidationError(f"Место {trip_seat.seat} уже забронировано")
 
-
-            # Проверка соответствия суммы платежа общей стоимости
-            if self.payment:
-                calculated_total = self.total_price
-                if self.payment.amount != calculated_total:
-                    raise ValidationError(
-                        f"Сумма платежа ({self.payment.amount}) не соответствует общей стоимости ({calculated_total})"
-                    )
-
     def save(self, *args, **kwargs):
         super().save(*args, **kwargs)

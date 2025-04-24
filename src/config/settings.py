@@ -214,15 +214,15 @@ SWAGGER_SETTINGS = {
 
 AUTH_USER_MODEL = 'transfer_auth.User'
 
-# Selery setup 
-CELERY_BROKER_URL = 'redis://redis:6379/1'
+# Celery настройки для RabbitMQ
+CELERY_BROKER_URL = 'amqp://busser_killer:password@rabbitmq:5672/'
 CELERY_RESULT_BACKEND = 'redis://redis:6379/1'
-CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
+CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_TRACK_STARTED = True
-# CELERY_TASK_TIME_LIMIT = 30 * 60
-CELERY_ACCEPT_CONTENT = ['application/json']
-# CELERY_TIMEZONE = 'Europe/Moscow'
+CELERY_BROKER_CONNECTION_RETRY = True
+CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
 
 APPEND_SLASH = False
 

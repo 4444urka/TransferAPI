@@ -51,8 +51,17 @@ services:
     environment:
       - PYTHONPATH=/app/src
     depends_on:
-      - redis
+      - rabbitmq
       - web
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: busser_killer
+      RABBITMQ_DEFAULT_PASS: password
 
   celery-beat:
     build: .
@@ -62,7 +71,7 @@ services:
     environment:
       - PYTHONPATH=/app/src
     depends_on:
-      - redis
+      - rabbitmq
       - web
 volumes:
   postgres_data:

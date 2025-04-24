@@ -15,24 +15,54 @@ logger = logging.getLogger(__name__)
 
 
 @receiver(m2m_changed, sender=Booking.trip_seats.through)
-def update_seat_booking_status(sender, instance, action, pk_set, **kwargs):
-    """Обновляет статус бронирования мест при их добавлении или удалении из бронирования"""
-    if action in ["post_add", "post_remove", "post_clear"]:
-        # При добавлении мест обновляем их статус в соответствии с is_active бронирования
-        if action == "post_add" and pk_set:
-            trip_seats = TripSeat.objects.filter(pk__in=pk_set)
-            for trip_seat in trip_seats:
-                # Устанавливаем статус забронирован только если бронирование активно
-                trip_seat.is_booked = instance.is_active
-                trip_seat.save()
+def update_trip_seat_status(sender, instance, action, pk_set, **kwargs):
+    """
+    Обновляет статус is_booked у TripSeat при изменении M2M связи с Booking.
+    """
+    
+    if action == "post_add":
+        # Места были добавлены к бронированию - помечаем их как забронированные
+        added_seats = TripSeat.objects.filter(pk__in=pk_set)
+        updated_count = 0
+        for seat in added_seats:
+            if not seat.is_booked:
+                seat.is_booked = True
+                seat.save(update_fields=['is_booked'])
+                updated_count += 1
+                logger.debug(f"Marked TripSeat {seat.pk} as booked for Booking {instance.pk}")
+            else:
+                # Это может произойти, если место уже было забронировано 
+                # (хотя валидация должна была это предотвратить)
+                logger.warning(f"TripSeat {seat.pk} was already booked when adding to Booking {instance.pk}")
+        if updated_count > 0:
+            logger.info(f"Marked {updated_count} TripSeat(s) as booked for Booking {instance.pk}")
 
-        # При очистке всех мест освобождаем их
-        elif action in ["post_remove", "post_clear"]:
-            #  нам нужно освободить конкретные места, если это post_remove
-                trip_seats = TripSeat.objects.filter(pk__in=pk_set)
-                for trip_seat in trip_seats:
-                    trip_seat.is_booked = False
-                    trip_seat.save()
+    elif action == "post_remove" or action == "post_clear":
+        # Места были удалены из бронирования - помечаем их как свободные
+        # Важно: pk_set передается только для post_remove, для post_clear он пустой.
+        # Но для post_clear нам и не нужно знать pk_set, т.к. мы не можем 
+        # освободить места, не зная, какие именно были очищены.
+        # Стандартное поведение Django при clear() просто удаляет связи.
+        # Освобождение мест должно происходить при отмене/удалении бронирования.
+        
+        # Обрабатываем только post_remove
+        if action == "post_remove" and pk_set:
+            removed_seats = TripSeat.objects.filter(pk__in=pk_set)
+            updated_count = 0
+            # Прежде чем освободить место, убедимся, что оно не привязано к ДРУГОМУ АКТИВНОМУ бронированию
+            for seat in removed_seats:
+                 other_bookings = Booking.objects.filter(trip_seats=seat, is_active=True).exclude(pk=instance.pk)
+                 if not other_bookings.exists():
+                     if seat.is_booked:
+                        seat.is_booked = False
+                        seat.save(update_fields=['is_booked'])
+                        updated_count += 1
+                        logger.debug(f"Marked TripSeat {seat.pk} as unbooked after removing from Booking {instance.pk}")
+                 else:
+                     logger.warning(f"TripSeat {seat.pk} is still linked to other active bookings, not marking as unbooked.")
+                     
+            if updated_count > 0:
+                 logger.info(f"Marked {updated_count} TripSeat(s) as unbooked after removing from Booking {instance.pk}")
 
 
 @receiver(pre_delete, sender=Booking)

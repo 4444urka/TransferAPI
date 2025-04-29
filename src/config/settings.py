@@ -114,7 +114,7 @@ DATABASES = {
         'ENGINE': 'django.db.backends.postgresql',
         'NAME': 'transfer_db',
         'USER': 'busser_killer',
-        'PASSWORD': '11111111',
+        'PASSWORD': 'MbU?rU9&^FfBWrv&s=tw',
         'HOST': 'db',
         'PORT': '5432',
     }

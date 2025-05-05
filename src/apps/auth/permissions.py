@@ -27,6 +27,9 @@ class HasUserPermissions(permissions.BasePermission):
         if view.__class__.__name__ == 'DetailUserView':
             # Обычные пользователи видят только себя
             return True
+        
+        if view.__class__.__name__ == 'UpdateUserView':
+            return True
 
         # В остальных случаях запрещаем
         return False

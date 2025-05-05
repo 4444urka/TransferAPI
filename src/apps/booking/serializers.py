@@ -17,7 +17,7 @@ class BookingSerializer(serializers.ModelSerializer):
 
 
 class BookingDetailSerializer(serializers.ModelSerializer):
-    seats = SeatSerializer(many=True, read_only=True)
+    seat_numbers = serializers.SerializerMethodField()
     trip = TripDetailSerializer(read_only=True)
     payment = PaymentSerializer(read_only=True)
     total_price = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
@@ -25,8 +25,11 @@ class BookingDetailSerializer(serializers.ModelSerializer):
     class Meta:
         model = Booking
         fields = ['id', 'user', 'trip', 'payment', 'booking_datetime',
-                  'is_active', 'seats', 'total_price', 'pickup_location', 'dropoff_location']
+                  'is_active', 'seat_numbers', 'total_price', 'pickup_location', 'dropoff_location']
         read_only_fields = ['booking_datetime', 'user', 'total_price']
+    
+    def get_seat_numbers(self, obj):
+        return [trip_seat.seat.seat_number for trip_seat in obj.trip_seats.all()]
 
     def create(self, validated_data):
         return BookingService.create_booking(validated_data, self.initial_data)

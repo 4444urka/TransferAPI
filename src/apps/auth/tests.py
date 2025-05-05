@@ -211,7 +211,7 @@ class UserDetailTest(APITestCase):
             'password': self.password
         }, format='json').data.get('access')
 
-        self.user_detail_url = "/auth/users/get_user_info"
+        self.user_detail_url = "/auth/users/get_user_info/"
 
     def test_user_detail_route_unauthenticated(self):
         response = self.client.get(self.user_detail_url)
@@ -228,3 +228,278 @@ class UserDetailTest(APITestCase):
         self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.admin_token}')
         response = self.client.get(self.user_detail_url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+
+class UserUpdateTests(APITestCase):
+    def setUp(self):
+
+        self.phone_admin = "+79147282571"
+        self.user_phone = "+79223334455"
+        self.password = "normalpass123."
+        self.test_phone = "+79998881111"
+        # Создаем пользователей напрямую через модель
+        self.admin = User.objects.create_superuser(
+            phone_number=self.phone_admin,
+            password=self.password,
+            first_name="Admin",
+            last_name="User"
+        )
+        self.user = User.objects.create_user(
+            phone_number=self.user_phone,
+            password=self.password,
+            first_name="Normal",
+            last_name="User"
+        )
+        
+        # Получаем токены
+        self.admin_token = self.get_token(self.phone_admin, self.password)
+        self.user_token = self.get_token(self.user_phone, self.password)
+        
+        # URL для обновления
+        self.update_user_url = reverse('user_update', args=[self.user.id])
+        self.update_admin_url = reverse('user_update', args=[self.admin.id])
+
+    def get_token(self, phone, password):
+        response = self.client.post(
+            reverse('token_obtain_pair'),
+            {
+                'phone_number': phone, 
+                'password': password
+            },
+            format='json'
+        )
+        return response.data['access']
+
+    # --- Тесты безопасности ---
+    def test_unauthorized_access(self):
+        """Неаутентифицированный пользователь не может обновлять данные"""
+        response = self.client.patch(self.update_user_url, {})
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_user_cannot_update_others(self):
+        """Обычный пользователь не может обновлять чужой аккаунт"""
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.user_token}')
+        response = self.client.patch(self.update_admin_url, {'first_name': 'Hack'})
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.admin.refresh_from_db()
+        self.assertNotEqual(self.admin.first_name, 'Hack')
+
+    # --- Тесты функционала ---
+    def test_user_update_self(self):
+        """Обычный пользователь может обновить свои данные"""
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.user_token}')
+        data = {
+            'first_name': 'UpdatedName', 
+            'chat_id': '1111'
+            }
+        response = self.client.patch(self.update_user_url, data)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.first_name, 'UpdatedName')
+        self.assertEqual(self.user.chat_id, '1111')
+
+    def test_admin_update_any_user(self):
+        """Администратор может обновлять любые аккаунты"""
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.admin_token}')
+        data = {
+            'last_name': 'NewAdminName',
+            'chat_id': 2222
+            }
+        response = self.client.patch(self.update_user_url, data)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.last_name, 'NewAdminName')
+        self.assertEqual(self.user.chat_id, '2222')
+
+    # --- Тесты валидации ---
+    def test_invalid_fields(self):
+        """Нельзя изменять недопустимые поля"""
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.admin_token}')
+        data = {'phone_number': self.test_phone}
+        response = self.client.patch(self.update_admin_url, data)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_invalid_chat_id(self):
+        """Невалидный chat_id (должен быть числом)"""
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.user_token}')
+        data = {'chat_id': 'abc123'}
+        response = self.client.patch(self.update_user_url, data)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('chat_id', response.data)
+
+    def test_protected_fields(self) -> None:
+        """Попытка обновления защищенных (неразрешенных) полей должна вернуть ошибку."""
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.user_token}')
+        data = {'is_superuser': True}
+        response = self.client.patch(self.update_user_url, data)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+
+    # --- Тесты граничных условий ---
+    def test_update_nonexistent_user(self):
+        """Обновление несуществующего пользователя возвращает 404"""
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.admin_token}')
+        url = reverse('user_update', args=[999])
+        response = self.client.patch(url, {})
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_empty_update(self):
+        """PATCH-запрос без данных не изменяет пользователя"""
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.user_token}')
+        original_data = self.user.__dict__
+        response = self.client.patch(self.update_user_url, {})
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.user.refresh_from_db()
+        self.assertEqual(original_data['first_name'], self.user.first_name)
+
+    # --- Тесты методов ---
+    def test_disallowed_methods(self):
+        """PUT, DELETE и GET не поддерживаются"""
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.admin_token}')
+        response = self.client.get(self.update_user_url)
+        self.assertEqual(response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
+        
+        response = self.client.put(self.update_user_url, {})
+        self.assertEqual(response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
+        
+        response = self.client.delete(self.update_user_url)
+        self.assertEqual(response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
+
+    # --- Тест неопределенных полей ---
+    def test_unexpected_fields(self) -> None:
+        """Передача недопустимых полей приводит к ошибке валидации."""
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.user_token}')
+        data = {'first_name': 'Test', 'unknown_field': 'value'}
+        response = self.client.patch(self.update_user_url, data)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("Unexpected fields", str(response.data))
+
+    def test_admin_cannot_update_phone_number_via_admin(self) -> None:
+        """
+        В админке поле phone_number должно отображаться, но быть недоступным для редактирования.
+        Даже при отправке нового значения оно не должно измениться.
+        """
+        self.client.login(username=self.phone_admin, password=self.password)
+        admin_change_url = reverse('admin:transfer_auth_user_change', args=[self.user.id])
+        original_phone = self.user.phone_number
+        data = {
+            'phone_number': '+70000000000',
+            'first_name': 'AdminEdited',
+            'last_name': self.user.last_name,
+            'chat_id': '3333',
+            'password': self.user.password,
+        }
+        response = self.client.post(admin_change_url, data)
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.phone_number, original_phone)
+        self.assertEqual(self.user.first_name, 'AdminEdited')
+        self.assertEqual(self.user.chat_id, '3333')
+
+
+class UserUpdateTest(APITestCase):
+    """
+    Тесты для проверки эндпоинта обновления данных пользователя (/auth/users/{user_id}/update/).
+    Обычный пользователь может обновлять только свои данные (только поля first_name, last_name, chat_id),
+    а администратор – данные любого пользователя.
+    """
+    def setUp(self):
+        self.admin_phone = "+79147282571"
+        self.user_phone = "+79223334455"
+        self.password = "testpassword123."
+
+        # Создаем администратора напрямую через модель
+        self.admin = User.objects.create_superuser(
+            phone_number=self.admin_phone,
+            password=self.password,
+            first_name="Admin",
+            last_name="User"
+        )
+
+        # Создаем обычного пользователя напрямую через модель
+        self.user = User.objects.create_user(
+            phone_number=self.user_phone,
+            password=self.password,
+            first_name="Normal",
+            last_name="User"
+        )
+
+        # Получаем токены для обоих пользователей
+        admin_response = self.client.post(
+            reverse('token_obtain_pair'),
+            {"phone_number": self.admin_phone, "password": self.password},
+            format='json'
+        )
+        user_response = self.client.post(
+            reverse('token_obtain_pair'),
+            {"phone_number": self.user_phone, "password": self.password},
+            format='json'
+        )
+        self.admin_token = admin_response.data.get('access')
+        self.user_token = user_response.data.get('access')
+
+        # URL для обновления обычного пользователя (его данные)
+        self.update_user_url = reverse('user_update', args=[self.user.id])
+        # URL для обновления администратора (используется для проверки прав доступа)
+        self.update_admin_url = reverse('user_update', args=[self.admin.id])
+
+    def test_update_without_authentication(self):
+        """Неаутентифицированный пользователь не может обновлять данные."""
+        response = self.client.patch(self.update_user_url, data={})
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_normal_user_update_self_allowed_fields(self):
+        """
+        Обычный пользователь может обновить свои данные, если запрос содержит только допустимые поля:
+        first_name, last_name, chat_id.
+        """
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.user_token}')
+        update_data = {
+            "first_name": "UpdatedName",
+            "last_name": "UpdatedLast",
+            "chat_id": "123456"
+        }
+        response = self.client.patch(self.update_user_url, data=update_data, format='json')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        # Проверяем, что данные обновились
+        self.assertEqual(response.data.get("first_name"), "UpdatedName")
+        self.assertEqual(response.data.get("last_name"), "UpdatedLast")
+        self.assertEqual(response.data.get("chat_id"), "123456")
+
+    def test_normal_user_update_extra_fields_not_allowed(self):
+        """
+        Если обычный пользователь пытается обновить недопустимые поля (например, phone_number),
+        возвращается ошибка валидации.
+        """
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.user_token}')
+        update_data = {
+            "first_name": "NewName",
+            "phone_number": "+79998880000",  # недопустимое поле, т.к. allowed_fields = {first_name, last_name, chat_id}
+            "chat_id": "67890"
+        }
+        response = self.client.patch(self.update_user_url, data=update_data, format='json')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        # Проверяем, что в ошибке присутствует указание на недопустимые поля
+        self.assertIn("Unexpected fields", str(response.data))
+
+    def test_normal_user_cannot_update_other_user(self):
+        """
+        Обычный пользователь не может обновлять данные другого пользователя.
+        Например, попытка обновить данные администратора должна вернуть ошибку доступа.
+        """
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.user_token}')
+        update_data = {"first_name": "HackerName", "chat_id": "99999"}
+        response = self.client.patch(self.update_admin_url, data=update_data, format='json')
+        # Статус может отличаться (например, 403 Forbidden) в зависимости от реализации HasUserPermissions
+        self.assertNotEqual(response.status_code, status.HTTP_200_OK)
+
+    def test_admin_can_update_any_user(self):
+        """
+        Администратор имеет право обновлять данные любого пользователя.
+        """
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.admin_token}')
+        update_data = {"first_name": "AdminUpdated", "last_name": "AdminLast", "chat_id": "55555"}
+        response = self.client.patch(self.update_user_url, data=update_data, format='json')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data.get("first_name"), "AdminUpdated")
+        self.assertEqual(response.data.get("chat_id"), "55555")
+

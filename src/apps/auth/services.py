@@ -1,10 +1,12 @@
 import logging
-from typing import Optional, List, Dict, Any
-
+from typing import Optional, Union, List, Dict, Any
+import re
+import phonenumbers
 from django.db.models import Q
 import django.contrib.auth.password_validation as validators
 from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework import serializers
+from rest_framework.exceptions import PermissionDenied
 
 from .models import User
 
@@ -47,7 +49,7 @@ class UserService:
             
         self.logger.info('User data validation passed')
     
-    def get_all_users(self) -> List[User]:
+    def get_all_users(self) -> Optional[User]:
         """
         Получить всех пользователей.
         
@@ -61,7 +63,7 @@ class UserService:
         try:
             users = User.objects.all()
             self.logger.info(f'Got {users.count()} users')
-            return list(users)
+            return users
         except Exception as e:
             self.logger.error(f'Failed to get all users: {e}')
             raise
@@ -118,7 +120,74 @@ class UserService:
         except Exception as e:
             self.logger.error(f"Failed to get user by phone: {e}")
             raise
-    
+
+
+    def validate_phone_number(self, phone_number: str, user_id: Optional[int] = None) -> str:
+        """
+        Валидирует и нормализует номер телефона.
+
+        Args:
+            phone_number: Строка с номером телефона для валидации.
+            user_id: Идентификатор пользователя, обновление которого происходит 
+                     (используется для исключения текущего пользователя из проверки уникальности).
+
+        Returns:
+            Нормализованный номер телефона в формате E164.
+
+        Raises:
+            serializers.ValidationError: Если номер телефона содержит недопустимые символы,
+                некорректный или уже используется.
+        """
+        # Проверка на допустимые символы: только '+' и цифры
+        # это нужно тк phonenumbers.parse лояльно относится к другим символам в номере и сам отсекает их
+        if not re.fullmatch(r"\+?\d+", phone_number):
+            raise serializers.ValidationError({'phone_number': 'Phone number contains invalid characters'})
+
+        try:
+            parsed = phonenumbers.parse(phone_number, None)
+            if not phonenumbers.is_valid_number(parsed):
+                raise serializers.ValidationError({'phone_number': 'Invalid phone number'})
+            normalized = phonenumbers.format_number(parsed, phonenumbers.PhoneNumberFormat.E164)
+        except Exception:
+            raise serializers.ValidationError({'phone_number': 'Invalid phone number'})
+
+        if User.objects.filter(phone_number=normalized).exclude(id=user_id).exists():
+            raise serializers.ValidationError({'phone_number': 'Phone number already in use'})
+        return normalized
+
+    def validate_chat_id(self, chat_id: Union[str, int], user_id: Optional[int] = None, raise_django_exception: bool = False) -> str:
+        """
+        Валидирует поле chat_id, проверяя, что оно состоит только из цифр и уникально.
+
+        Args:
+            chat_id: Идентификатор чата, который требуется проверить (строка или число).
+            user_id: Идентификатор пользователя, обновление которого происходит 
+                     (используется для исключения текущего пользователя из проверки уникальности).
+            raise_django_exception: Если True, при ошибке валидации выбрасывается 
+                                    DjangoValidationError, иначе serializers.ValidationError.
+
+        Returns:
+            chat_id в виде строки.
+
+        Raises:
+            serializers.ValidationError или DjangoValidationError: Если chat_id содержит недопустимые символы
+                или уже зарегистрирован.
+        """
+        chat_id_str = str(chat_id)
+        if not chat_id_str.isdigit():
+            msg = 'Chat ID must be numeric'
+            if raise_django_exception:
+                raise DjangoValidationError(msg)
+            raise serializers.ValidationError({'chat_id': msg})
+
+        if User.objects.filter(chat_id=chat_id_str).exclude(id=user_id).exists():
+            msg = 'Chat ID already registered'
+            if raise_django_exception:
+                raise DjangoValidationError(msg)
+            raise serializers.ValidationError({'chat_id': msg})
+
+        return chat_id_str
+                
     def create_user(self, phone_number: str, password: str, first_name: str = None, last_name: str = None) -> User:
         """
         Создать пользователя.
@@ -162,6 +231,7 @@ class UserService:
         Args:
             user_id: Идентификатор пользователя
             data: Словарь с данными для обновления
+            current_user: объект пользователя, который сделал запрос
             
         Returns:
             Обновленный объект пользователя или None, если пользователь не найден
@@ -172,25 +242,13 @@ class UserService:
         self.logger.debug(f'Updating user with id {user_id}')
         try:
             user = self.get_user_by_id(user_id)
-                
-            # Обновляем только разрешенные поля
-            allowed_fields = ['first_name', 'last_name', 'phone_number']
-            update_fields = []
-            
-            for field in allowed_fields:
-                if field == 'phone_number' and 'phone_number' in data:
-                    if User.objects.filter(phone_number=data['phone_number']).exclude(id=user_id).exists():
-                        self.logger.error('Phone number already in use')
-                        raise serializers.ValidationError('Phone number already in use')
-                
-                if field in data:
-                    setattr(user, field, data[field])
-                    update_fields.append(field)
-            
-            if update_fields:
-                user.save(update_fields=update_fields)
-                self.logger.info(f'Updated user {user_id}: {", ".join(update_fields)}')
-            
+
+            # allowed_fields = ['first_name', 'last_name', 'phone_number', 'chat_id']
+            # update_fields = []
+
+            for field, value in data.items():
+                setattr(user, field, value)
+            user.save(update_fields=list(data.keys()))
             return user
         except Exception as e:
             self.logger.error(f'Error updating user {user_id}: {e}')

@@ -73,6 +73,9 @@ class TripViewSet(viewsets.ModelViewSet):
             openapi.Parameter('current', openapi.IN_QUERY, 
                               description="Флаг для фильтрации актуальных поездок (true/false). Если true, возвращаются только поездки, у которых departure_time >= текущему времени.",
                               type=openapi.TYPE_BOOLEAN),
+            openapi.Parameter('is_bookable', openapi.IN_QUERY, 
+                              description="Фильтр по возможности бронирования (true/false)", 
+                              type=openapi.TYPE_BOOLEAN),
         ],
         tags=["Поездки"]
     )

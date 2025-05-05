@@ -5,10 +5,20 @@ from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from django_filters.rest_framework import DjangoFilterBackend
+from django.core.cache import cache
+from django.http import JsonResponse
+from django.shortcuts import get_object_or_404
+
+import logging
 
 from .permissions import HasBookingPermission
 from .serializers import BookingSerializer, BookingDetailSerializer
 from .services import BookingService
+from apps.trip.models import Trip
+from apps.seat.models import TripSeat
+
+logger = logging.getLogger(__name__)
+
 
 class BookingViewSet(viewsets.ModelViewSet):
     """
@@ -43,7 +53,22 @@ class BookingViewSet(viewsets.ModelViewSet):
         tags=["Бронирования"]
     )
     def list(self, request, *args, **kwargs):
-        return super().list(request, *args, **kwargs)
+        # Если запрос с параметром detailed=true, попробуем извлечь данные из кэша
+        detailed = request.query_params.get('detailed', 'false').lower() in ['true', '1']
+        if detailed:
+            user = request.user
+            cache_key = f"booking_detailed_{user.id}"
+            cached_data = cache.get(cache_key)
+            if cached_data is not None:
+                logger.debug(f"Using cached bookings data for the user {user.id}")
+                return Response(cached_data)
+        else:
+            logger.debug("Using non-cached bookings data")
+        response = super().list(request, *args, **kwargs)
+        if detailed:
+            logger.debug(f"Caching booking data for the user {request.user.id}")
+            cache.set(cache_key, response.data, timeout=300)
+        return response
 
     @swagger_auto_schema(
         operation_description="Получение детальной информации о бронировании. Пользователь может видеть только свои бронирования. Администратор может видеть любое бронирование.",
@@ -101,8 +126,16 @@ class BookingViewSet(viewsets.ModelViewSet):
         return self.service.get_user_bookings(self.request.user)
 
     def get_serializer_class(self):
-        """Используем разные сериализаторы для списка и деталей"""
+        """
+        Используем подробный сериализатор для действий, которые требуют детальной информации,
+        а для списка можем использовать более компактный вариант.
+        При запросе detailed=true можно выбрать BookingDetailSerializer.
+        """
         if self.action in ['retrieve', 'create', 'update', 'partial_update']:
+            return BookingDetailSerializer
+        # Если query-параметр detailed=true в списке — возвращаем подробности
+        detailed = self.request.query_params.get('detailed', 'false').lower() in ['true', '1']
+        if detailed:
             return BookingDetailSerializer
         return BookingSerializer
 
@@ -145,3 +178,32 @@ class BookingViewSet(viewsets.ModelViewSet):
             return Response({"detail": "Бронирование успешно отменено"})
         except ValidationError as e:
             return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+def get_trip_seats(request):
+    """
+    Возвращает список TripSeat (id и строковое представление) 
+    для указанного trip_id в формате JSON.
+    """
+    trip_id = request.GET.get('trip_id')
+    data = {'seats': []} # По умолчанию пустой список
+
+    if trip_id:
+        try:
+            # Проверяем, существует ли поездка
+            trip = get_object_or_404(Trip, pk=trip_id)
+            # Получаем все TripSeat для этой поездки
+            # Возвращаем все места: и свободные, и забронированные, 
+            # чтобы пользователь видел всю картину
+            trip_seats = TripSeat.objects.filter(trip=trip).order_by('seat__seat_number')
+            
+            # Формируем список для JSON
+            data['seats'] = [
+                {'id': ts.pk, 'text': str(ts)}
+                for ts in trip_seats
+            ]
+        except ValueError:
+            # trip_id не является числом
+            pass # Возвращаем пустой список
+        # get_object_or_404 обработает случай, если Trip не найден
+
+    return JsonResponse(data)

@@ -390,29 +390,18 @@ class TripPermissionsTest(APITestCase):
         self.assertIn('results', response.data)
 
     def test_list_trips_as_anonymous(self):
-        """Тест запрета получения списка поездок анонимным пользователем"""
+        """Тест возможности получения списка поездок всем пользователем"""
         response = self.client.get(self.trip_list_url)
 
         # Анонимным пользователям требуется аутентификация
-        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
-
-    def test_retrieve_trip_as_authenticated(self):
-        """Тест просмотра деталей поездки аутентифицированным пользователем"""
-        # Аутентифицируем пользователя
-        self.client.force_authenticate(user=self.regular_user)
-
-        response = self.client.get(self.trip_detail_url)
-
-        # Аутентифицированные пользователи могут просматривать детали поездки
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.data['id'], self.trip.id)
 
     def test_retrieve_trip_as_anonymous(self):
-        """Тест запрета просмотра деталей поездки анонимным пользователем"""
+        """Тест возможности просмотра деталей поездки анонимным пользователем"""
         response = self.client.get(self.trip_detail_url)
 
         # Анонимным пользователям требуется аутентификация
-        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
 
     def test_create_trip_as_anonymous(self):
         """Тест запрета создания поездки анонимным пользователем"""
@@ -579,31 +568,18 @@ class TripPermissionsTest(APITestCase):
         # Проверяем, что поездка действительно удалилась
         self.assertFalse(Trip.objects.filter(id=new_trip.id).exists())
 
-    def test_access_trip_cities_endpoint(self):
-        """Тест доступа к эндпоинту городов аутентифицированными пользователями"""
-        # Проверка для аутентифицированного пользователя
-        self.client.force_authenticate(user=self.regular_user)
-        response = self.client.get(self.trip_cities_url)
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-
     def test_access_trip_cities_endpoint_as_anonymous(self):
-        """Тест запрета доступа к эндпоинту городов анонимным пользователям"""
+        """Тест возможности доступа к эндпоинту городов анонимным пользователям"""
         # Проверка для анонимного пользователя
         response = self.client.get(self.trip_cities_url)
-        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
-
-    def test_access_seats_endpoint(self):
-        """Тест доступа к эндпоинту мест аутентифицированными пользователями"""
-        # Проверка для аутентифицированного пользователя
-        self.client.force_authenticate(user=self.regular_user)
-        response = self.client.get(self.available_seats_url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
+
 
     def test_access_seats_endpoint_as_anonymous(self):
-        """Тест запрета доступа к эндпоинту мест анонимным пользователям"""
+        """Тест возможности доступа к эндпоинту мест анонимным пользователям"""
         # Проверка для анонимного пользователя
         response = self.client.get(self.available_seats_url)
-        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
 
     def test_role_permissions_consistency(self):
         """Тест последовательности назначения и отзыва прав через группы"""

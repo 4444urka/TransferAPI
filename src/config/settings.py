@@ -26,9 +26,9 @@ SECRET_KEY = 'django-insecure-!k4=w#1#!b1=hl9)z-t#z5kw@t79*%s7l^91t3j44mpje#0+v0
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['localhost', '127.0.0.1', 'web']
 
-from .logging import LOGGING
+TELEGRAM_BOT_TOKEN='7553600402:AAFvb8DvJQXpCsrmoABNtw0qw-q8R6izMNw'
 
 
 # Application definition
@@ -114,7 +114,7 @@ DATABASES = {
         'ENGINE': 'django.db.backends.postgresql',
         'NAME': 'transfer_db',
         'USER': 'busser_killer',
-        'PASSWORD': '11111111',
+        'PASSWORD': 'MbU?rU9&^FfBWrv&s=tw',
         'HOST': 'db',
         'PORT': '5432',
     }
@@ -213,6 +213,16 @@ SWAGGER_SETTINGS = {
 
 
 AUTH_USER_MODEL = 'transfer_auth.User'
+
+# Celery настройки для RabbitMQ
+CELERY_BROKER_URL = 'amqp://busser_killer:password@rabbitmq:5672/'
+CELERY_RESULT_BACKEND = 'redis://redis:6379/1'
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_TRACK_STARTED = True
+CELERY_BROKER_CONNECTION_RETRY = True
+CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
 
 APPEND_SLASH = False
 

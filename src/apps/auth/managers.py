@@ -1,7 +1,6 @@
 import phonenumbers
 from django.contrib.auth.base_user import BaseUserManager
 
-# пока сделано просто чтобы работало, нужно будет смотреть и дорабатывать
 class UserManager(BaseUserManager):
     """Кастомный менеджер для создания пользователей."""
 

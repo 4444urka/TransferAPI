@@ -11,6 +11,7 @@ class TripFilter(django_filters.FilterSet):
     departure_after = django_filters.DateTimeFilter(field_name="departure_time", lookup_expr='gte')
     departure_before = django_filters.DateTimeFilter(field_name="departure_time", lookup_expr='lte')
     current = django_filters.BooleanFilter(method='filter_current', label='Актуальные поездки')
+    is_bookable = django_filters.BooleanFilter(field_name='is_bookable', label='Доступна для бронирования')
 
     def filter_current(self, queryset, name, value):
         """
@@ -31,4 +32,5 @@ class TripFilter(django_filters.FilterSet):
             'vehicle__is_comfort': ['exact'],
             'vehicle__air_conditioning': ['exact'],
             'vehicle__allows_pets': ['exact'],
+            'is_bookable': ['exact']
         }

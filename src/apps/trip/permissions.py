@@ -4,7 +4,7 @@ from rest_framework import permissions
 class HasTripPermission(permissions.BasePermission):
     """
     Разрешения для поездок:
-    - Просмотр списка поездок и деталей поездки доступен всем аутентифицированным пользователям
+    - Просмотр списка поездок и деталей поездки и мест поездки доступен всем пользователям
     - Создание, изменение и удаление поездок доступно пользователям со специальными правами:
       - can_create_trip - право на создание поездок
       - can_update_trip - право на изменение поездок
@@ -13,15 +13,11 @@ class HasTripPermission(permissions.BasePermission):
     """
 
     def has_permission(self, request, view):
-        # Базовая проверка: пользователь должен быть аутентифицирован
-        if not request.user.is_authenticated:
-            return False
 
         # Администраторы имеют полный доступ
         if request.user.is_superuser:
             return True
 
-        # Для просмотра достаточно аутентификации
         if view.action in ['list', 'retrieve', 'cities', 'seats']:
             return True
 
@@ -41,7 +37,7 @@ class HasTripPermission(permissions.BasePermission):
         if request.user.is_superuser:
             return True
 
-        # Просмотр доступен всем аутентифицированным пользователям
+        # Просмотр доступен всем пользователям
         if view.action in ['retrieve', 'seats']:
             return True
 
@@ -55,3 +51,4 @@ class HasTripPermission(permissions.BasePermission):
 
         # В остальных случаях запрещаем
         return False
+    

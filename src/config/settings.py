@@ -57,10 +57,12 @@ INSTALLED_APPS = [
     'phonenumber_field',
     'drf_yasg',
     'django_filters',
+    'corsheaders',
 ]
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'corsheaders.middleware.CorsMiddleware',  # CORS middleware добавлен перед CommonMiddleware
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -225,6 +227,43 @@ CELERY_BROKER_CONNECTION_RETRY = True
 CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
 
 APPEND_SLASH = False
+
+# Настройки CORS для Flutter
+CORS_ALLOW_ALL_ORIGINS = True  # В продакшене лучше заменить на конкретные домены
+
+# Для продакшена можно указать конкретные домены:
+# CORS_ALLOWED_ORIGINS = [
+#     "https://example.com",
+#     "https://app.example.com",
+#     "http://localhost:8000",
+#     "http://127.0.0.1:9000",
+# ]
+
+# Разрешить все методы HTTP
+CORS_ALLOW_METHODS = [
+    "DELETE",
+    "GET",
+    "OPTIONS",
+    "PATCH",
+    "POST",
+    "PUT",
+]
+
+# Разрешить все заголовки
+CORS_ALLOW_HEADERS = [
+    "accept",
+    "accept-encoding",
+    "authorization",
+    "content-type",
+    "dnt",
+    "origin",
+    "user-agent",
+    "x-csrftoken",
+    "x-requested-with",
+]
+
+# Разрешить отправку куки
+CORS_ALLOW_CREDENTIALS = True
 
 # Internationalization
 # https://docs.djangoproject.com/en/5.1/topics/i18n/

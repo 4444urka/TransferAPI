@@ -13,11 +13,6 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      - name: Set up SSH
-        uses: webfactory/ssh-agent@v0.5.4
-        with:
-          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
-
       - name: Add server to known_hosts
         run: |
           mkdir -p ~/.ssh
@@ -25,12 +20,17 @@ jobs:
           chmod 600 ~/.ssh/known_hosts
         shell: bash
 
+      - name: Install sshpass
+        run: sudo apt-get update && sudo apt-get install -y sshpass
+        shell: bash
+
       - name: Deploy to server
         env:
           DEV_USER: ${{ secrets.DEV_SERVER_USER }}
           DEV_HOST: ${{ secrets.DEV_SERVER_HOST }}
+          DEV_SERVER_PASSWORD: ${{ secrets.DEV_SERVER_PASSWORD }}
         run: |
-          ssh -vvv -o StrictHostKeyChecking=no $DEV_USER@$DEV_HOST << 'EOF'
+          sshpass -p "$DEV_SERVER_PASSWORD" ssh -vvv -o StrictHostKeyChecking=no $DEV_USER@$DEV_HOST << 'EOF'
             cd TransferAPI
             git checkout develop
             git pull origin develop

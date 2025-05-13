@@ -25,13 +25,12 @@ jobs:
           chmod 600 ~/.ssh/known_hosts
         shell: bash
 
-        
       - name: Deploy to server
         env:
           DEV_USER: ${{ secrets.DEV_SERVER_USER }}
           DEV_HOST: ${{ secrets.DEV_SERVER_HOST }}
         run: |
-          ssh -o StrictHostKeyChecking=no $DEV_USER@$DEV_HOST << \'EOF\'
+          ssh -vvv -o StrictHostKeyChecking=no $DEV_USER@$DEV_HOST << 'EOF'
             cd TransferAPI
             git checkout develop
             git pull origin develop

@@ -34,6 +34,7 @@ class SeatViewSet(mixins.ListModelMixin,
 
     """
 
+    queryset = Seat.objects.all()
     seat_service = SeatService()
     serializer_class = SeatSerializer
 
@@ -132,7 +133,7 @@ class SeatViewSet(mixins.ListModelMixin,
         ],
         tags=["Места"]
     )
-    @action(detail=False, methods=['get'], url_path='by_vehicle/(?P<vehicle_id>\d+)')
+    @action(detail=False, methods=['get'], url_path=r'by_vehicle/(?P<vehicle_id>\d+)')
     def get_seats_by_vehicle(self, request, vehicle_id=None):
         """Получение списка мест для конкретного транспортного средства"""
         try:

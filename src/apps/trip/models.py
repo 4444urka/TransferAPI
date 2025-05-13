@@ -44,11 +44,19 @@ class Trip(models.Model):
         verbose_name="Дата и время прибытия"
         )
 
-    default_ticket_price = models.DecimalField(
-        max_digits=10, decimal_places=2, 
-        default=0, verbose_name="Цена билета"
-        )
-    
+    front_seat_price = models.DecimalField(
+        max_digits=10, decimal_places=2,
+        default=0, verbose_name="Цена переднего места"
+    )
+    middle_seat_price = models.DecimalField(
+        max_digits=10, decimal_places=2,
+        default=0, verbose_name="Цена среднего места"
+    )
+    back_seat_price = models.DecimalField(
+        max_digits=10, decimal_places=2,
+        default=0, verbose_name="Цена заднего места"
+    )
+
     is_bookable = models.BooleanField(default=True, verbose_name="Доступна для бронирования")
     booking_cutoff_minutes = models.PositiveIntegerField(
         default=30,
@@ -96,10 +104,18 @@ class Trip(models.Model):
                 'vehicle': f'Транспорт занят с {conflicts[0].departure_time} до {conflicts[0].arrival_time}'
             })
 
-        # Проверка цены
-        if self.default_ticket_price < 0:
+        # Проверка цен
+        if self.front_seat_price < 0:
             raise ValidationError({
-                'default_ticket_price': 'Цена не может быть отрицательной'
+                'front_seat_price': 'Цена переднего места не может быть отрицательной'
+            })
+        if self.middle_seat_price < 0:
+            raise ValidationError({
+                'middle_seat_price': 'Цена среднего места не может быть отрицательной'
+            })
+        if self.back_seat_price < 0:
+            raise ValidationError({
+                'back_seat_price': 'Цена заднего места не может быть отрицательной'
             })
         
         # Проверка времени до отправления
@@ -113,4 +129,3 @@ class Trip(models.Model):
         self.full_clean()
         super().save(*args, **kwargs)
 
-    

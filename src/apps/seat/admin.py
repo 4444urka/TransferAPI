@@ -59,10 +59,11 @@ class SeatAdmin(admin.ModelAdmin):
 
 @admin.register(TripSeat)
 class TripSeatAdmin(admin.ModelAdmin):
-    list_display = ('id', 'trip', 'seat_info', 'is_booked')
+    list_display = ('id', 'trip', 'seat_info', 'cost', 'is_booked')
     list_filter = ('trip', 'is_booked')
     search_fields = ('trip__id', 'seat__seat_number')
     raw_id_fields = ('trip', 'seat')
+    readonly_fields = ('cost',)
 
     def seat_info(self, obj):
         """Информация о месте"""

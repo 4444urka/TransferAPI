@@ -36,7 +36,7 @@ class TripViewSet(viewsets.ModelViewSet):
     filterset_class = TripFilter
     search_fields = ['origin__name', 'destination__name']
     permission_classes = [IsAuthenticated, HasTripPermission]
-    ordering_fields = ['departure_time', 'arrival_time', 'default_ticket_price']
+    ordering_fields = ['departure_time', 'arrival_time', 'front_seat_price', 'middle_seat_price', 'back_seat_price']
     ordering = ['departure_time']
 
     def __init__(self, *args, **kwargs):

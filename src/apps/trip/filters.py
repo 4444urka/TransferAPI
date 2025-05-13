@@ -5,8 +5,8 @@ from apps.trip.models import Trip
 
 
 class TripFilter(django_filters.FilterSet):
-    min_price = django_filters.NumberFilter(field_name="default_ticket_price", lookup_expr='gte')
-    max_price = django_filters.NumberFilter(field_name="default_ticket_price", lookup_expr='lte')
+    min_price = django_filters.NumberFilter(field_name="middle_seat_price", lookup_expr='gte') # Изменено
+    max_price = django_filters.NumberFilter(field_name="middle_seat_price", lookup_expr='lte') # Изменено
     date = django_filters.DateFilter(field_name="departure_time", lookup_expr='date')
     departure_after = django_filters.DateTimeFilter(field_name="departure_time", lookup_expr='gte')
     departure_before = django_filters.DateTimeFilter(field_name="departure_time", lookup_expr='lte')

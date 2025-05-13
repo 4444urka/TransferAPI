@@ -360,7 +360,9 @@ class BookingFilterTest(APITestCase):
             destination=destination1,
             departure_time=now + timedelta(days=1),
             arrival_time=now + timedelta(days=1, hours=5),
-            default_ticket_price=Decimal('1000.00')
+            front_seat_price=Decimal('1000.00'),
+            middle_seat_price=Decimal('1000.00'),
+            back_seat_price=Decimal('1000.00')
         )
 
         self.trip2 = Trip.objects.create(
@@ -369,7 +371,9 @@ class BookingFilterTest(APITestCase):
             destination=destination2,
             departure_time=now + timedelta(days=2),
             arrival_time=now + timedelta(days=2, hours=6),
-            default_ticket_price=Decimal('1200.00')
+            front_seat_price=Decimal('1200.00'),
+            middle_seat_price=Decimal('1200.00'),
+            back_seat_price=Decimal('1200.00')
         )
 
         # Создаем пользователей
@@ -537,7 +541,9 @@ class BookingAPITest(APITestCase):
             destination=destination,
             departure_time=timezone.now() + timedelta(days=1),
             arrival_time=timezone.now() + timedelta(days=1, hours=5),
-            default_ticket_price=Decimal('1000.00')
+            front_seat_price=Decimal('1000.00'),
+            middle_seat_price=Decimal('1000.00'),
+            back_seat_price=Decimal('1000.00')
         )
         
         # URL для тестов

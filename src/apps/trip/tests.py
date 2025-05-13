@@ -43,7 +43,9 @@ class TripModelTest(TestCase):
             destination=self.destination,
             departure_time=timezone.now() + timedelta(days=1),
             arrival_time=timezone.now() + timedelta(days=1, hours=5),
-            default_ticket_price=Decimal('1000.00')
+            front_seat_price=Decimal('1000.00'),
+            middle_seat_price=Decimal('1000.00'),
+            back_seat_price=Decimal('1000.00')
         )
 
     def test_trip_str_representation(self):
@@ -111,7 +113,9 @@ class TripViewSetTest(APITestCase):
             destination=self.destination,
             departure_time=self.now + timedelta(days=1),
             arrival_time=self.now + timedelta(days=1, hours=5),
-            default_ticket_price=Decimal('1000.00')
+            front_seat_price=Decimal('1000.00'),
+            middle_seat_price=Decimal('1000.00'),
+            back_seat_price=Decimal('1000.00')
         )
 
         self.future_trip = Trip.objects.create(
@@ -120,7 +124,9 @@ class TripViewSetTest(APITestCase):
             destination=self.destination,
             departure_time=self.now + timedelta(days=2),
             arrival_time=self.now + timedelta(days=2, hours=2),
-            default_ticket_price=Decimal('800.00')
+            front_seat_price=Decimal('800.00'),
+            middle_seat_price=Decimal('800.00'),
+            back_seat_price=Decimal('800.00')
         )
 
         # Поездка в другой город
@@ -130,7 +136,9 @@ class TripViewSetTest(APITestCase):
             destination=self.another_city,
             departure_time=self.now + timedelta(days=3),
             arrival_time=self.now + timedelta(days=3, hours=7),
-            default_ticket_price=Decimal('1200.00')
+            front_seat_price=Decimal('1200.00'),
+            middle_seat_price=Decimal('1200.00'),
+            back_seat_price=Decimal('1200.00')
         )
 
         # URL для тестов
@@ -175,7 +183,9 @@ class TripViewSetTest(APITestCase):
         self.assertEqual(response.data['id'], self.trip.id)
         self.assertEqual(response.data['origin']['id'], self.origin.id)
         self.assertEqual(response.data['destination']['id'], self.destination.id)
-        self.assertEqual(Decimal(response.data['default_ticket_price']), self.trip.default_ticket_price)
+        self.assertEqual(Decimal(response.data['front_seat_price']), self.trip.front_seat_price)
+        self.assertEqual(Decimal(response.data['middle_seat_price']), self.trip.middle_seat_price)
+        self.assertEqual(Decimal(response.data['back_seat_price']), self.trip.back_seat_price)
 
     def test_create_trip_as_admin(self):
         """Тест создания поездки администратором"""
@@ -190,7 +200,9 @@ class TripViewSetTest(APITestCase):
             "destination_name": self.another_city.name,
             "departure_time": departure_time.strftime("%Y-%m-%dT%H:%M:%S"),
             "arrival_time": arrival_time.strftime("%Y-%m-%dT%H:%M:%S"),
-            "default_ticket_price": "900.00"
+            "front_seat_price": "900.00",
+            "middle_seat_price": "900.00",
+            "back_seat_price": "900.00"
         }
 
         response = self.client.post(self.trip_list_url, data, format='json')
@@ -206,7 +218,9 @@ class TripViewSetTest(APITestCase):
         self.client.force_authenticate(user=self.admin_user)
 
         data = {
-            "default_ticket_price": "1100.00",
+            "front_seat_price": "1100.00",
+            "middle_seat_price": "1100.00",
+            "back_seat_price": "1100.00",
             "vehicle": self.vehicle1.id,
             "origin_name": self.origin.name,
             "destination_name": self.destination.name,
@@ -224,7 +238,9 @@ class TripViewSetTest(APITestCase):
 
         # Проверяем, что цена обновилась
         self.trip.refresh_from_db()
-        self.assertEqual(self.trip.default_ticket_price, Decimal('1100.00'))
+        self.assertEqual(self.trip.front_seat_price, Decimal('1100.00'))
+        self.assertEqual(self.trip.middle_seat_price, Decimal('1100.00'))
+        self.assertEqual(self.trip.back_seat_price, Decimal('1100.00'))
 
     def test_delete_trip_as_admin(self):
         """Тест удаления поездки администратором"""
@@ -266,7 +282,9 @@ class TripPaginationTest(APITestCase):
                 destination=self.destination,
                 departure_time=now + timedelta(days=i + 1),
                 arrival_time=now + timedelta(days=i + 1, hours=5),
-                default_ticket_price=Decimal(1000 + i * 100)
+                front_seat_price=Decimal(1000 + i * 100),
+                middle_seat_price=Decimal(1000 + i * 100),
+                back_seat_price=Decimal(1000 + i * 100)
             )
 
         self.trip_list_url = reverse('trip-list')
@@ -366,7 +384,9 @@ class TripPermissionsTest(APITestCase):
             destination=self.destination,
             departure_time=timezone.now() + timedelta(days=1),
             arrival_time=timezone.now() + timedelta(days=1, hours=5),
-            default_ticket_price=Decimal('1000.00')
+            front_seat_price=Decimal('1000.00'),
+            middle_seat_price=Decimal('1000.00'),
+            back_seat_price=Decimal('1000.00')
         )
 
         # URL для тестов
@@ -411,7 +431,9 @@ class TripPermissionsTest(APITestCase):
             "destination_name": self.destination.name,
             "departure_time": (timezone.now() + timedelta(days=5)).strftime("%Y-%m-%dT%H:%M:%S"),
             "arrival_time": (timezone.now() + timedelta(days=5, hours=5)).strftime("%Y-%m-%dT%H:%M:%S"),
-            "default_ticket_price": "1200.00"
+            "front_seat_price": "1200.00",
+            "middle_seat_price": "1200.00",
+            "back_seat_price": "1200.00"
         }
 
         response = self.client.post(self.trip_list_url, data, format='json')
@@ -429,7 +451,9 @@ class TripPermissionsTest(APITestCase):
             "destination_name": self.destination.name,
             "departure_time": (timezone.now() + timedelta(days=5)).strftime("%Y-%m-%dT%H:%M:%S"),
             "arrival_time": (timezone.now() + timedelta(days=5, hours=5)).strftime("%Y-%m-%dT%H:%M:%S"),
-            "default_ticket_price": "1200.00"
+            "front_seat_price": "1200.00",
+            "middle_seat_price": "1200.00",
+            "back_seat_price": "1200.00"
         }
 
         response = self.client.post(self.trip_list_url, data, format='json')
@@ -447,7 +471,9 @@ class TripPermissionsTest(APITestCase):
             "destination_name": self.destination.name,
             "departure_time": (timezone.now() + timedelta(days=5)).strftime("%Y-%m-%dT%H:%M:%S"),
             "arrival_time": (timezone.now() + timedelta(days=5, hours=5)).strftime("%Y-%m-%dT%H:%M:%S"),
-            "default_ticket_price": "1200.00"
+            "front_seat_price": "1200.00",
+            "middle_seat_price": "1200.00",
+            "back_seat_price": "1200.00"
         }
 
         response = self.client.post(self.trip_list_url, data, format='json')
@@ -473,7 +499,9 @@ class TripPermissionsTest(APITestCase):
             "destination_name": self.destination.name,
             "departure_time": (timezone.now() + timedelta(days=5)).strftime("%Y-%m-%dT%H:%M:%S"),
             "arrival_time": (timezone.now() + timedelta(days=5, hours=5)).strftime("%Y-%m-%dT%H:%M:%S"),
-            "default_ticket_price": "1200.00"
+            "front_seat_price": "1200.00",
+            "middle_seat_price": "1200.00",
+            "back_seat_price": "1200.00"
         }
 
         response = self.client.post(self.trip_list_url, data, format='json')
@@ -490,7 +518,9 @@ class TripPermissionsTest(APITestCase):
         self.client.force_authenticate(user=self.regular_user)
 
         data = {
-            "default_ticket_price": "1300.00"
+            "front_seat_price": "1300.00",
+            "middle_seat_price": "1300.00",
+            "back_seat_price": "1300.00"
         }
 
         response = self.client.patch(self.trip_detail_url, data, format='json')
@@ -503,7 +533,9 @@ class TripPermissionsTest(APITestCase):
         self.client.force_authenticate(user=self.manager_user)
 
         data = {
-            "default_ticket_price": "1300.00",
+            "front_seat_price": "1300.00",
+            "middle_seat_price": "1300.00",
+            "back_seat_price": "1300.00",
             "origin_name": self.trip.origin.name,
             "destination_name": self.trip.destination.name
         }
@@ -519,7 +551,9 @@ class TripPermissionsTest(APITestCase):
 
         # Проверяем, что цена действительно обновилась
         self.trip.refresh_from_db()
-        self.assertEqual(self.trip.default_ticket_price, Decimal('1300.00'))
+        self.assertEqual(self.trip.front_seat_price, Decimal('1300.00'))
+        self.assertEqual(self.trip.middle_seat_price, Decimal('1300.00'))
+        self.assertEqual(self.trip.back_seat_price, Decimal('1300.00'))
 
     def test_delete_trip_as_regular_user(self):
         """Тест запрета удаления поездки обычным пользователем"""
@@ -556,7 +590,9 @@ class TripPermissionsTest(APITestCase):
             destination=self.destination,
             departure_time=timezone.now() + timedelta(days=2),
             arrival_time=timezone.now() + timedelta(days=2, hours=5),
-            default_ticket_price=Decimal('1000.00')
+            front_seat_price=Decimal('1000.00'),
+            middle_seat_price=Decimal('1000.00'),
+            back_seat_price=Decimal('1000.00')
         )
         new_trip_url = reverse('trip-detail', args=[new_trip.id])
 
@@ -593,7 +629,9 @@ class TripPermissionsTest(APITestCase):
             "destination_name": self.destination.name,
             "departure_time": (timezone.now() + timedelta(days=5)).strftime("%Y-%m-%dT%H:%M:%S"),
             "arrival_time": (timezone.now() + timedelta(days=5, hours=5)).strftime("%Y-%m-%dT%H:%M:%S"),
-            "default_ticket_price": "1200.00"
+            "front_seat_price": "1200.00",
+            "middle_seat_price": "1200.00",
+            "back_seat_price": "1200.00"
         }
 
         response = self.client.post(self.trip_list_url, data, format='json')

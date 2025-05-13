@@ -128,7 +128,10 @@ class TripSeatModelTest(TestCase):
             destination=self.destination,
             departure_time=timezone.now() + timedelta(days=1),
             arrival_time=timezone.now() + timedelta(days=1, hours=5),
-            default_ticket_price=Decimal('1000.00')
+            front_seat_price=Decimal('1000.00'),
+            middle_seat_price=Decimal('1000.00'),
+            back_seat_price=Decimal('1000.00')
+
         )
 
         # Получаем места для транспортного средства
@@ -182,7 +185,9 @@ class TripSeatModelTest(TestCase):
             destination=self.destination,
             departure_time=timezone.now() + timedelta(days=2),
             arrival_time=timezone.now() + timedelta(days=2, hours=5),
-            default_ticket_price=Decimal('1000.00')
+            front_seat_price=Decimal('1000.00'),
+            middle_seat_price=Decimal('1000.00'),
+            back_seat_price=Decimal('1000.00')
         )
 
         # Выбираем одно место для тестов
@@ -236,7 +241,9 @@ class SeatAPITest(APITestCase):
             destination=City.objects.create(name='Санкт-Петербург'),
             departure_time=timezone.now() + timedelta(days=1),
             arrival_time=timezone.now() + timedelta(days=1, hours=5),
-            default_ticket_price=Decimal('1000.00')
+            front_seat_price=Decimal('1000.00'),
+            middle_seat_price=Decimal('1000.00'),
+            back_seat_price=Decimal('1000.00')
         )
 
         # Получаем TripSeat
@@ -359,7 +366,9 @@ class TripSeatBookingTest(APITestCase):
             destination=City.objects.create(name='Санкт-Петербург'),
             departure_time=timezone.now() + timedelta(days=1),
             arrival_time=timezone.now() + timedelta(days=1, hours=5),
-            default_ticket_price=Decimal('1000.00')
+            front_seat_price=Decimal('1000.00'),
+            middle_seat_price=Decimal('1000.00'),
+            back_seat_price=Decimal('1000.00')
         )
 
         self.trip2 = Trip.objects.create(
@@ -368,7 +377,9 @@ class TripSeatBookingTest(APITestCase):
             destination=City.objects.get(name='Санкт-Петербург'),
             departure_time=timezone.now() + timedelta(days=2),
             arrival_time=timezone.now() + timedelta(days=2, hours=5),
-            default_ticket_price=Decimal('1000.00')
+            front_seat_price=Decimal('1000.00'),
+            middle_seat_price=Decimal('1000.00'),
+            back_seat_price=Decimal('1000.00')
         )
 
         # Получаем TripSeat
@@ -514,7 +525,9 @@ class SeatPermissionTest(APITestCase):
             destination=self.destination,
             departure_time=timezone.now() + timedelta(days=1),
             arrival_time=timezone.now() + timedelta(days=1, hours=5),
-            default_ticket_price=Decimal('1000.00')
+            front_seat_price=Decimal('1000.00'),
+            middle_seat_price=Decimal('1000.00'),
+            back_seat_price=Decimal('1000.00')
         )
 
         # Получаем TripSeat

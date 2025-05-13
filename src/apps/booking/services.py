@@ -35,6 +35,8 @@ class BookingService:
 
     def get_user_bookings(user):
         """Получение списка бронирований с учетом прав доступа"""
+        if not user or not user.is_authenticated:
+            return Booking.objects.none()
         if user.has_perm('booking.can_view_all_booking') or user.is_staff:
             return Booking.objects.all()
         return Booking.objects.filter(user=user)
@@ -88,4 +90,4 @@ class BookingService:
             trip_seat.is_booked = False
             trip_seat.save()
 
-        return booking 
+        return booking

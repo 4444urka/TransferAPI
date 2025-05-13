@@ -46,7 +46,9 @@ class BookingAPITest(APITestCase):
             destination=destination,
             departure_time=timezone.now() + timedelta(days=1),
             arrival_time=timezone.now() + timedelta(days=1, hours=5),
-            default_ticket_price=Decimal('1000.00')
+            front_seat_price=Decimal('1000.00'),
+            middle_seat_price=Decimal('1000.00'),
+            back_seat_price=Decimal('1000.00')
         )
         
         # URL для тестов
@@ -92,4 +94,4 @@ class BookingAPITest(APITestCase):
         
         # Проверяем, что место отмечено как забронированное
         available_trip_seat.refresh_from_db()
-        self.assertTrue(available_trip_seat.is_booked) 
+        self.assertTrue(available_trip_seat.is_booked)

@@ -10,12 +10,21 @@ class TripSeatService:
     def create_trip_seats(self, trip: Trip) -> None:
         """
         Creates TripSeat records for each seat of the vehicle associated with the trip.
+        Sets the cost of the TripSeat based on the seat type and the prices defined in the Trip model.
         """
         try:
             vehicle_seats = Seat.objects.filter(vehicle=trip.vehicle)
             for seat in vehicle_seats:
-                TripSeat.objects.create(trip=trip, seat=seat)
-            self.logger.info(f"TripSeat records successfully created for Trip id: {trip.id}")
+                cost = 0
+                if seat.seat_type == 'front':
+                    cost = trip.front_seat_price
+                elif seat.seat_type == 'middle':
+                    cost = trip.middle_seat_price
+                elif seat.seat_type == 'back':
+                    cost = trip.back_seat_price
+                
+                TripSeat.objects.create(trip=trip, seat=seat, cost=cost)
+            self.logger.info(f"TripSeat records successfully created for Trip id: {trip.id} with differentiated pricing.")
         except Exception as e:
             self.logger.exception(f"Error while creating TripSeat records for Trip id: {trip.id}. Exception: {e}")
             raise

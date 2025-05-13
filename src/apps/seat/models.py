@@ -116,6 +116,12 @@ class Seat(models.Model):
 class TripSeat(models.Model):
     trip = models.ForeignKey(Trip, on_delete=models.CASCADE, related_name='trip_seats', verbose_name="Поездка")
     seat = models.ForeignKey(Seat, on_delete=models.CASCADE, related_name='trip_seats', verbose_name="Место")
+    cost = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=0.00,
+        verbose_name="Цена места"
+    )
     is_booked = models.BooleanField(default=False, verbose_name="Забронировано")
 
     class Meta:

@@ -13,4 +13,4 @@ class TripSeatSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = TripSeat
-        fields = ('id', 'trip', 'seat', 'is_booked')
+        fields = ('id', 'trip', 'seat', 'is_booked', 'cost')

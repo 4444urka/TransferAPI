@@ -218,7 +218,9 @@ class VehicleModelTest(TestCase):
             destination=destination,
             departure_time=timezone.now() + timedelta(days=1),
             arrival_time=timezone.now() + timedelta(days=1, hours=5),
-            default_ticket_price=Decimal('1000.00')
+            front_seat_price=Decimal('1000.00'),
+            middle_seat_price=Decimal('1000.00'),
+            back_seat_price=Decimal('1000.00')
         )
 
         # Бронируем последнее место
@@ -258,7 +260,9 @@ class VehicleModelTest(TestCase):
             destination=destination,
             departure_time=timezone.now() + timedelta(days=1),
             arrival_time=timezone.now() + timedelta(days=1, hours=2),
-            default_ticket_price=Decimal('500.00')
+            front_seat_price=Decimal('500.00'),
+            middle_seat_price=Decimal('500.00'),
+            back_seat_price=Decimal('500.00')
         )
 
         # Проверяем, что для каждого места создан TripSeat
@@ -547,7 +551,9 @@ class VehicleAPITest(APITestCase):
             destination=destination,
             departure_time=trip_start,
             arrival_time=trip_end,
-            default_ticket_price=Decimal('1000.00')
+            front_seat_price=Decimal('1000.00'),
+            middle_seat_price=Decimal('1000.00'),
+            back_seat_price=Decimal('1000.00')
         )
 
         # Убираем микросекунды и не добавляем «Z»

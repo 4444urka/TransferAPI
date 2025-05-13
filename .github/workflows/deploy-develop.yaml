@@ -30,7 +30,7 @@ jobs:
           DEV_HOST: ${{ secrets.DEV_SERVER_HOST }}
           DEV_SERVER_PASSWORD: ${{ secrets.DEV_SERVER_PASSWORD }}
         run: |
-          sshpass -p "$DEV_SERVER_PASSWORD" ssh -vvv -o StrictHostKeyChecking=no $DEV_USER@$DEV_HOST << 'EOF'
+          sshpass -p "$DEV_SERVER_PASSWORD" ssh -o StrictHostKeyChecking=no $DEV_USER@$DEV_HOST << 'EOF'
             cd TransferAPI
             git checkout develop
             git pull origin develop

@@ -25,6 +25,7 @@ jobs:
           chmod 600 ~/.ssh/known_hosts
         shell: bash
 
+        
       - name: Deploy to server
         env:
           DEV_USER: ${{ secrets.DEV_SERVER_USER }}

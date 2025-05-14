@@ -6,19 +6,17 @@ from .serializers import UserRegistrationSerializer, MyTokenObtainPairSerializer
 from rest_framework import generics, status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from rest_framework.views import APIView
 from .models import User
-from rest_framework.exceptions import PermissionDenied
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
+user_service = UserService()
 
 class DetailUserView(generics.RetrieveAPIView):
-    user_service = UserService()
     serializer_class = UserSerializer
     permission_classes = [HasUserPermissions]
 
     def get_object(self):
-        return self.request.user  # Возвращаем текущего пользователя из запроса
+        return self.request.user
 
     @swagger_auto_schema(
         operation_description="Получение информации о пользователе",
@@ -30,12 +28,11 @@ class DetailUserView(generics.RetrieveAPIView):
 
 
 class UserListView(generics.ListAPIView):
-    user_service = UserService()
     serializer_class = UserSerializer
     permission_classes = [IsAuthenticated, HasUserPermissions]
 
     def get_queryset(self):
-        return list(self.user_service.get_all_users())
+        return list(user_service.get_all_users())
 
     @swagger_auto_schema(
         operation_description="Получение списка пользователей. Администраторы получают всех, обычные пользователи - только себя.",
@@ -47,14 +44,13 @@ class UserListView(generics.ListAPIView):
     
     
 class UpdateUserView(generics.GenericAPIView):
-    user_service = UserService()
     serializer_class = UserUpdateSerializer
     permission_classes = [IsAuthenticated, HasUserPermissions]
     lookup_field = 'id'
     lookup_url_kwarg = 'user_id'
 
     def get_queryset(self):
-        return self.user_service.get_all_users()
+        return user_service.get_all_users()
 
     @swagger_auto_schema(
         operation_description="Обновление данных пользователя",

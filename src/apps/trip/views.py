@@ -17,6 +17,9 @@ from .services.TripService import TripService
 from apps.seat.models import TripSeat
 from apps.seat.serializers import TripSeatSerializer
 
+trip_service = TripService()
+
+
 class TripViewSet(viewsets.ModelViewSet):
     """
     API для работы с поездками.
@@ -38,10 +41,6 @@ class TripViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated, HasTripPermission]
     ordering_fields = ['departure_time', 'arrival_time', 'front_seat_price', 'middle_seat_price', 'back_seat_price']
     ordering = ['departure_time']
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.trip_service = TripService()
 
     @swagger_auto_schema(
         operation_description="Получение списка доступных поездок с возможностью фильтрации по множеству параметров",
@@ -132,7 +131,7 @@ class TripViewSet(viewsets.ModelViewSet):
                 )
         
         # Создаем поездку через сервис
-        trip = self.trip_service.create_trip(validated_data)
+        trip = trip_service.create_trip(validated_data)
         
         # Возвращаем созданную поездку
         result_serializer = TripDetailSerializer(trip)
@@ -149,7 +148,7 @@ class TripViewSet(viewsets.ModelViewSet):
         instance = self.get_object()
         serializer = self.get_serializer(instance, data=request.data, partial=partial)
         serializer.is_valid(raise_exception=True)
-        trip = self.trip_service.update_trip(instance, serializer.validated_data)
+        trip = trip_service.update_trip(instance, serializer.validated_data)
         return Response(serializer.data)
 
     @swagger_auto_schema(
@@ -167,7 +166,7 @@ class TripViewSet(viewsets.ModelViewSet):
     )
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
-        self.trip_service.delete_trip(instance)
+        trip_service.delete_trip(instance)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
     def get_serializer_class(self):
@@ -188,7 +187,7 @@ class TripViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         """Базовая фильтрация"""
-        return self.trip_service.get_trip_queryset()
+        return trip_service.get_trip_queryset()
 
     @swagger_auto_schema(
         operation_description="Получение списка городов",
@@ -199,7 +198,7 @@ class TripViewSet(viewsets.ModelViewSet):
     @method_decorator(cache_page(60 * 60))  # кэш на 1 час, так как список городов меняется редко
     def cities(self, request):
         """Получение списка городов для фильтрации"""
-        cities = self.trip_service.get_cities()
+        cities = trip_service.get_cities()
         return Response({
             'origin_cities': [{'id': c.id, 'name': c.name} for c in cities],
             'destination_cities': [{'id': c.id, 'name': c.name} for c in cities]

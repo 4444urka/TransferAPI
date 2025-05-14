@@ -19,6 +19,7 @@ from apps.seat.models import TripSeat
 
 logger = logging.getLogger(__name__)
 
+bookingService = BookingService
 
 class BookingViewSet(viewsets.ModelViewSet):
     """
@@ -28,7 +29,6 @@ class BookingViewSet(viewsets.ModelViewSet):
     Администраторы имеют доступ ко всем бронированиям.
     """
     serializer_class = BookingSerializer
-    service = BookingService
     permission_classes = [IsAuthenticated, HasBookingPermission]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ['is_active', 'trip']
@@ -123,7 +123,7 @@ class BookingViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         """Получение списка бронирований с учетом прав доступа"""
-        return self.service.get_user_bookings(self.request.user)
+        return bookingService.get_user_bookings(self.request.user)
 
     def get_serializer_class(self):
         """
@@ -174,7 +174,7 @@ class BookingViewSet(viewsets.ModelViewSet):
         booking = self.get_object()
         
         try:
-            self.service.cancel_booking(booking)
+            bookingService.cancel_booking(booking)
             return Response({"detail": "Бронирование успешно отменено"})
         except ValidationError as e:
             return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)

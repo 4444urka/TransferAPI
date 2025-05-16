@@ -58,6 +58,7 @@ class Trip(models.Model):
     )
 
     is_bookable = models.BooleanField(default=True, verbose_name="Доступна для бронирования")
+    is_active = models.BooleanField(default=True, verbose_name="Поездка активна")
     booking_cutoff_minutes = models.PositiveIntegerField(
         default=30,
         verbose_name="Время до начала поездки за которое нельзя бронировать поездку (в минутах)",

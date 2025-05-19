@@ -4,7 +4,7 @@ from decimal import Decimal
 from django.core.exceptions import ValidationError
 from .models import Booking
 from apps.seat.models import Seat, TripSeat
-from utils.address import find_street_by_name
+from utils.address import find_address_by_name
 from apps.trip.models import Trip # Импортируем Trip для __init__
 
 class BookingForm(forms.ModelForm):

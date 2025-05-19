@@ -6,7 +6,7 @@ from apps.auth.models import User
 from apps.payment.models import Payment
 from apps.seat.models import TripSeat
 from apps.trip.models import Trip
-from utils.address import find_street_by_name
+from utils.address import find_address_by_name
 
 
 class Booking(models.Model):
@@ -99,7 +99,7 @@ class Booking(models.Model):
         if self.pickup_location and self.pickup_location.strip():
             # Проверяем, соответствует ли адрес уже нашему формату
             try:
-                refactored_pickup_location = find_street_by_name(self.pickup_location, self.trip.origin.name)
+                refactored_pickup_location = find_address_by_name(self.pickup_location, self.trip.origin.name)
                 if refactored_pickup_location:
                     self.pickup_location = refactored_pickup_location
                 else:
@@ -112,7 +112,7 @@ class Booking(models.Model):
         if self.dropoff_location and self.dropoff_location.strip():
             # Проверяем, соответствует ли адрес уже нашему формату
             try:
-                refactored_dropoff_location = find_street_by_name(self.dropoff_location, self.trip.destination.name)
+                refactored_dropoff_location = find_address_by_name(self.dropoff_location, self.trip.destination.name)
                 if refactored_dropoff_location:
                     self.dropoff_location = refactored_dropoff_location
                 else:

@@ -5,7 +5,7 @@ from .cache_utils import cached_address_lookup
 logger = logging.getLogger(__name__)
 
 @cached_address_lookup(timeout=86400)  # 24 часа для кэширования
-def find_street_by_name(street: str, city: str = None) -> str | None:
+def find_address_by_name(address: str, city: str = None) -> str | None:
     """
     Ищет улицу по названию с использованием API геокодирования.
     
@@ -17,11 +17,11 @@ def find_street_by_name(street: str, city: str = None) -> str | None:
         Отформатированный адрес или None, если адрес не найден
     """
     
-    if street is None or not street.strip() or street.isdigit():
+    if address is None or not address.strip() or address.isdigit():
         logger.error("Street name is empty or invalid")
         return None
     
-    logger.debug(f"Trying to find address using API: '{street}' in '{city}'")
+    logger.debug(f"Trying to find address using API: '{address}' in '{city}'")
     
     headers = {
         'User-Agent': 'Armada (contact@example.com)'
@@ -30,7 +30,7 @@ def find_street_by_name(street: str, city: str = None) -> str | None:
     params = {
         'format': 'json',
         'city': city,
-        'street': street,
+        'street': address,
         'addressdetails': 1,
         'countrycodes': 'ru',
         'limit': 5,
@@ -53,7 +53,7 @@ def find_street_by_name(street: str, city: str = None) -> str | None:
         
         # Проверяем, что в ответе есть данные
         if not data:
-            logger.error(f"No results found for '{street}' in '{city}'")
+            logger.error(f"No results found for '{address}' in '{city}'")
             return None
         
         logger.debug(f"API response: {data}")
@@ -75,5 +75,5 @@ def find_street_by_name(street: str, city: str = None) -> str | None:
         return result
 
     except Exception as e:
-        logger.error(f"Error in find_street_by_name: {e}")
+        logger.error(f"Error in find_address_by_name: {e}")
         return None

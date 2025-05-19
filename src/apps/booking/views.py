@@ -12,7 +12,7 @@ from django.shortcuts import get_object_or_404
 import logging
 
 from .permissions import HasBookingPermission
-from .serializers import BookingSerializer, BookingDetailSerializer
+from .serializers import BookingDetailSerializer
 from .services import BookingService
 from apps.trip.models import Trip
 from apps.seat.models import TripSeat
@@ -28,7 +28,7 @@ class BookingViewSet(viewsets.ModelViewSet):
     Обычные пользователи видят только свои бронирования.
     Администраторы имеют доступ ко всем бронированиям.
     """
-    serializer_class = BookingSerializer
+    serializer_class = BookingDetailSerializer
     permission_classes = [IsAuthenticated, HasBookingPermission]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ['is_active', 'trip']
@@ -37,7 +37,7 @@ class BookingViewSet(viewsets.ModelViewSet):
     ordering = ['-booking_datetime']
 
     @swagger_auto_schema(
-        operation_description="Получение списка бронирований. Для обычных пользователей возвращаются только их собственные бронирования, для администраторов - все бронирования.",
+        operation_description="Получение списка бронирований с полными данными о поездке, пользователе и платеже. Для обычных пользователей возвращаются только их собственные бронирования, для администраторов - все бронирования.",
         operation_summary="Список бронирований",
         manual_parameters=[
             openapi.Parameter('is_active', openapi.IN_QUERY, description="Фильтр по статусу активности (true/false)",
@@ -48,26 +48,31 @@ class BookingViewSet(viewsets.ModelViewSet):
                               type=openapi.TYPE_STRING),
             openapi.Parameter('ordering', openapi.IN_QUERY,
                               description="Поле для сортировки (booking_datetime, -booking_datetime, trip__departure_time, -trip__departure_time)",
-                              type=openapi.TYPE_STRING)
+                              type=openapi.TYPE_STRING),
+            openapi.Parameter('detailed', openapi.IN_QUERY, description="Получить детализированные данные (true/false, по умолчанию всегда true)",
+                              type=openapi.TYPE_BOOLEAN)
         ],
         tags=["Бронирования"]
     )
     def list(self, request, *args, **kwargs):
-        # Если запрос с параметром detailed=true, попробуем извлечь данные из кэша
-        detailed = request.query_params.get('detailed', 'false').lower() in ['true', '1']
-        if detailed:
-            user = request.user
-            cache_key = f"booking_detailed_{user.id}"
-            cached_data = cache.get(cache_key)
-            if cached_data is not None:
-                logger.debug(f"Using cached bookings data for the user {user.id}")
-                return Response(cached_data)
-        else:
-            logger.debug("Using non-cached bookings data")
+        # Всегда используем детализированное представление данных
+        detailed = True
+        user = request.user
+        cache_key = f"booking_detailed_{user.id}"
+        
+        # Пробуем извлечь данные из кэша, если они есть
+        cached_data = cache.get(cache_key)
+        if cached_data is not None:
+            logger.debug(f"Using cached bookings data for the user {user.id}")
+            return Response(cached_data)
+            
+        logger.debug("Using non-cached bookings data")
         response = super().list(request, *args, **kwargs)
-        if detailed:
-            logger.debug(f"Caching booking data for the user {request.user.id}")
-            cache.set(cache_key, response.data, timeout=300)
+        
+        # Кешируем результат для будущих запросов
+        logger.debug(f"Caching booking data for the user {request.user.id}")
+        cache.set(cache_key, response.data, timeout=300)
+        
         return response
 
     @swagger_auto_schema(
@@ -127,17 +132,18 @@ class BookingViewSet(viewsets.ModelViewSet):
 
     def get_serializer_class(self):
         """
-        Используем подробный сериализатор для действий, которые требуют детальной информации,
-        а для списка можем использовать более компактный вариант.
-        При запросе detailed=true можно выбрать BookingDetailSerializer.
+        Используем BookingDetailSerializer для всех операций.
         """
-        if self.action in ['retrieve', 'create', 'update', 'partial_update']:
-            return BookingDetailSerializer
-        # Если query-параметр detailed=true в списке — возвращаем подробности
-        detailed = self.request.query_params.get('detailed', 'false').lower() in ['true', '1']
-        if detailed:
-            return BookingDetailSerializer
-        return BookingSerializer
+        return BookingDetailSerializer
+        
+    def get_serializer(self, *args, **kwargs):
+        """
+        Переопределяем метод get_serializer для списка бронирований,
+        чтобы всегда возвращались сериализованные вложенные объекты.
+        """
+        serializer_class = self.get_serializer_class()
+        kwargs.setdefault('context', self.get_serializer_context())
+        return serializer_class(*args, **kwargs)
 
     def perform_create(self, serializer):
         """Автоматически устанавливаем текущего пользователя при создании"""

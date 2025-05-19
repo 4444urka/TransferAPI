@@ -12,7 +12,7 @@ from rest_framework import status
 from .filters import TripFilter
 from .models import Trip
 from .permissions import HasTripPermission
-from .serializers import TripListSerializer, TripDetailSerializer, TripCreateUpdateSerializer
+from .serializers import TripDetailSerializer, TripCreateUpdateSerializer
 from .services.TripService import TripService
 from apps.seat.models import TripSeat
 from apps.seat.serializers import TripSeatSerializer
@@ -169,10 +169,8 @@ class TripViewSet(viewsets.ModelViewSet):
     def get_serializer_class(self):
         if self.action in ['create', 'update', 'partial_update']:
             return TripCreateUpdateSerializer
-        elif self.action == 'retrieve':
-            return TripDetailSerializer
         else:
-            return TripListSerializer
+            return TripDetailSerializer
 
     def get_permissions(self):
         """

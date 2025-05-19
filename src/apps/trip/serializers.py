@@ -10,36 +10,6 @@ class CitySerializer(serializers.ModelSerializer):
         model = City
         fields = ('id', 'name')
 
-
-class TripListSerializer(serializers.ModelSerializer):
-    origin = CitySerializer(read_only=True)
-    destination = CitySerializer(read_only=True)
-    vehicle = VehicleMinSerializer(read_only=True)
-    available_seats = serializers.SerializerMethodField()
-    duration = serializers.SerializerMethodField()
-
-    class Meta:
-        model = Trip
-        fields = (
-            'id', 'origin', 'destination', 'departure_time', 'arrival_time',
-            'front_seat_price', 'middle_seat_price', 'back_seat_price',
-            'vehicle', 'available_seats', 'duration',
-            'booking_cutoff_minutes', 'is_bookable'
-        )
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.trip_service = TripService()
-
-    def get_available_seats(self, obj):
-        """Получение количества свободных мест для поездки"""
-        return self.trip_service.get_available_seats(obj)
-
-    def get_duration(self, obj):
-        """Получение длительности поездки в формате часы:минуты"""
-        return self.trip_service.get_duration(obj)
-
-
 class TripDetailSerializer(serializers.ModelSerializer):
     origin = CitySerializer(read_only=True)
     destination = CitySerializer(read_only=True)

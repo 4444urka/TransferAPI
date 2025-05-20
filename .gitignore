@@ -16,3 +16,5 @@ celerybeat-schedule-wal
 
 # gavno
 .DS_Store
+
+.cursor

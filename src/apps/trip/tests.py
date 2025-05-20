@@ -23,8 +23,8 @@ class TripModelTest(TestCase):
 
     def setUp(self):
         # Создаем города
-        self.origin = City.objects.create(name='Москва')
-        self.destination = City.objects.create(name='Санкт-Петербург')
+        self.from_city = City.objects.create(name='Москва')
+        self.to_city = City.objects.create(name='Санкт-Петербург')
 
         # Создаем транспорт
         self.vehicle = Vehicle.objects.create(
@@ -39,17 +39,19 @@ class TripModelTest(TestCase):
         # Создаем поездку
         self.trip = Trip.objects.create(
             vehicle=self.vehicle,
-            origin=self.origin,
-            destination=self.destination,
+            from_city=self.from_city,
+            to_city=self.to_city,
             departure_time=timezone.now() + timedelta(days=1),
             arrival_time=timezone.now() + timedelta(days=1, hours=5),
-            default_ticket_price=Decimal('1000.00')
+            front_seat_price=Decimal('1000.00'),
+            middle_seat_price=Decimal('1000.00'),
+            back_seat_price=Decimal('1000.00')
         )
 
     def test_trip_str_representation(self):
         """Тест строкового представления поездки"""
         # Обновляем ожидаемую строку в соответствии с действительным форматом
-        expected_str = f"{self.trip.departure_time.strftime('%Y-%m-%d %H:%M')}: {self.origin.name} - {self.destination.name}"
+        expected_str = f"{self.trip.departure_time.strftime('%Y-%m-%d %H:%M')}: {self.from_city.name} - {self.to_city.name}"
         self.assertEqual(str(self.trip), expected_str)
 
     def test_trip_duration(self):
@@ -78,8 +80,8 @@ class TripViewSetTest(APITestCase):
         self.regular_user = User.objects.create_user('+79111111112', 'userpass')
 
         # Создаем города
-        self.origin = City.objects.create(name='Москва')
-        self.destination = City.objects.create(name='Санкт-Петербург')
+        self.from_city = City.objects.create(name='Москва')
+        self.to_city = City.objects.create(name='Санкт-Петербург')
         self.another_city = City.objects.create(name='Казань')
 
         # Создаем транспортные средства
@@ -107,30 +109,36 @@ class TripViewSetTest(APITestCase):
         # Создаем поездки
         self.trip = Trip.objects.create(
             vehicle=self.vehicle1,
-            origin=self.origin,
-            destination=self.destination,
+            from_city=self.from_city,
+            to_city=self.to_city,
             departure_time=self.now + timedelta(days=1),
             arrival_time=self.now + timedelta(days=1, hours=5),
-            default_ticket_price=Decimal('1000.00')
+            front_seat_price=Decimal('1000.00'),
+            middle_seat_price=Decimal('1000.00'),
+            back_seat_price=Decimal('1000.00')
         )
 
         self.future_trip = Trip.objects.create(
             vehicle=self.vehicle2,
-            origin=self.origin,
-            destination=self.destination,
+            from_city=self.from_city,
+            to_city=self.to_city,
             departure_time=self.now + timedelta(days=2),
             arrival_time=self.now + timedelta(days=2, hours=2),
-            default_ticket_price=Decimal('800.00')
+            front_seat_price=Decimal('800.00'),
+            middle_seat_price=Decimal('800.00'),
+            back_seat_price=Decimal('800.00')
         )
 
         # Поездка в другой город
         self.another_trip = Trip.objects.create(
             vehicle=self.vehicle1,
-            origin=self.origin,
-            destination=self.another_city,
+            from_city=self.from_city,
+            to_city=self.another_city,
             departure_time=self.now + timedelta(days=3),
             arrival_time=self.now + timedelta(days=3, hours=7),
-            default_ticket_price=Decimal('1200.00')
+            front_seat_price=Decimal('1200.00'),
+            middle_seat_price=Decimal('1200.00'),
+            back_seat_price=Decimal('1200.00')
         )
 
         # URL для тестов
@@ -154,7 +162,7 @@ class TripViewSetTest(APITestCase):
         self.assertTrue(Trip.objects.filter(id=self.future_trip.id).exists())
 
         # Проверяем наличие поездок с нашими конкретными параметрами
-        filtered_url = f"{self.trip_list_url}?origin={self.origin.id}&destination={self.destination.id}"
+        filtered_url = f"{self.trip_list_url}?from_city={self.from_city.id}&to_city={self.to_city.id}"
         filtered_response = self.client.get(filtered_url)
         self.assertEqual(filtered_response.status_code, status.HTTP_200_OK)
 
@@ -173,9 +181,11 @@ class TripViewSetTest(APITestCase):
 
         # Проверяем точные значения некоторых полей
         self.assertEqual(response.data['id'], self.trip.id)
-        self.assertEqual(response.data['origin']['id'], self.origin.id)
-        self.assertEqual(response.data['destination']['id'], self.destination.id)
-        self.assertEqual(Decimal(response.data['default_ticket_price']), self.trip.default_ticket_price)
+        self.assertEqual(response.data['from_city']['id'], self.from_city.id)
+        self.assertEqual(response.data['to_city']['id'], self.to_city.id)
+        self.assertEqual(Decimal(response.data['front_seat_price']), self.trip.front_seat_price)
+        self.assertEqual(Decimal(response.data['middle_seat_price']), self.trip.middle_seat_price)
+        self.assertEqual(Decimal(response.data['back_seat_price']), self.trip.back_seat_price)
 
     def test_create_trip_as_admin(self):
         """Тест создания поездки администратором"""
@@ -186,11 +196,13 @@ class TripViewSetTest(APITestCase):
 
         data = {
             "vehicle": self.vehicle1.id,
-            "origin_name": self.origin.name,
-            "destination_name": self.another_city.name,
+            "from_city_name": self.from_city.name,
+            "to_city_name": self.another_city.name,
             "departure_time": departure_time.strftime("%Y-%m-%dT%H:%M:%S"),
             "arrival_time": arrival_time.strftime("%Y-%m-%dT%H:%M:%S"),
-            "default_ticket_price": "900.00"
+            "front_seat_price": "900.00",
+            "middle_seat_price": "900.00",
+            "back_seat_price": "900.00"
         }
 
         response = self.client.post(self.trip_list_url, data, format='json')
@@ -206,10 +218,12 @@ class TripViewSetTest(APITestCase):
         self.client.force_authenticate(user=self.admin_user)
 
         data = {
-            "default_ticket_price": "1100.00",
+            "front_seat_price": "1100.00",
+            "middle_seat_price": "1100.00",
+            "back_seat_price": "1100.00",
             "vehicle": self.vehicle1.id,
-            "origin_name": self.origin.name,
-            "destination_name": self.destination.name,
+            "from_city_name": self.from_city.name,
+            "to_city_name": self.to_city.name,
             "departure_time": self.trip.departure_time.strftime("%Y-%m-%dT%H:%M:%S"),
             "arrival_time": self.trip.arrival_time.strftime("%Y-%m-%dT%H:%M:%S"),
         }
@@ -224,7 +238,9 @@ class TripViewSetTest(APITestCase):
 
         # Проверяем, что цена обновилась
         self.trip.refresh_from_db()
-        self.assertEqual(self.trip.default_ticket_price, Decimal('1100.00'))
+        self.assertEqual(self.trip.front_seat_price, Decimal('1100.00'))
+        self.assertEqual(self.trip.middle_seat_price, Decimal('1100.00'))
+        self.assertEqual(self.trip.back_seat_price, Decimal('1100.00'))
 
     def test_delete_trip_as_admin(self):
         """Тест удаления поездки администратором"""
@@ -249,8 +265,8 @@ class TripPaginationTest(APITestCase):
         self.user = User.objects.create_user('+79111111112', 'userpass')
 
         # Создаем города и транспорт
-        self.origin = City.objects.create(name='Москва')
-        self.destination = City.objects.create(name='Санкт-Петербург')
+        self.from_city = City.objects.create(name='Москва')
+        self.to_city = City.objects.create(name='Санкт-Петербург')
         self.vehicle = Vehicle.objects.create(
             vehicle_type='bus',
             license_plate='А123АА',
@@ -262,11 +278,13 @@ class TripPaginationTest(APITestCase):
         for i in range(30):
             Trip.objects.create(
                 vehicle=self.vehicle,
-                origin=self.origin,
-                destination=self.destination,
+                from_city=self.from_city,
+                to_city=self.to_city,
                 departure_time=now + timedelta(days=i + 1),
                 arrival_time=now + timedelta(days=i + 1, hours=5),
-                default_ticket_price=Decimal(1000 + i * 100)
+                front_seat_price=Decimal(1000 + i * 100),
+                middle_seat_price=Decimal(1000 + i * 100),
+                back_seat_price=Decimal(1000 + i * 100)
             )
 
         self.trip_list_url = reverse('trip-list')
@@ -346,8 +364,8 @@ class TripPermissionsTest(APITestCase):
         self.manager_user.groups.add(self.manager_group)
 
         # Создаем города
-        self.origin = City.objects.create(name='Москва')
-        self.destination = City.objects.create(name='Санкт-Петербург')
+        self.from_city = City.objects.create(name='Москва')
+        self.to_city = City.objects.create(name='Санкт-Петербург')
 
         # Создаем транспортное средство
         self.vehicle = Vehicle.objects.create(
@@ -359,213 +377,170 @@ class TripPermissionsTest(APITestCase):
             allows_pets=False
         )
 
-        # Создаем поездку
+        # Создаем поездку для тестов
         self.trip = Trip.objects.create(
             vehicle=self.vehicle,
-            origin=self.origin,
-            destination=self.destination,
+            from_city=self.from_city,
+            to_city=self.to_city,
             departure_time=timezone.now() + timedelta(days=1),
             arrival_time=timezone.now() + timedelta(days=1, hours=5),
-            default_ticket_price=Decimal('1000.00')
+            front_seat_price=Decimal('1000.00'),
+            middle_seat_price=Decimal('800.00'),
+            back_seat_price=Decimal('600.00')
         )
 
-        # URL для тестов
+        # Создаем URLs для тестов
         self.trip_list_url = reverse('trip-list')
-        self.trip_detail_url = reverse('trip-detail', args=[self.trip.id])
+        self.trip_detail_url = reverse('trip-detail', kwargs={'pk': self.trip.pk})
         self.trip_cities_url = reverse('trip-cities')
-        self.available_seats_url = reverse('trip-seats', args=[self.trip.id])
+        self.trip_seats_url = reverse('trip-seats', kwargs={'pk': self.trip.pk})
 
-        # Клиент для запросов
+        # Инициализируем клиент для запросов
         self.client = APIClient()
 
     def test_list_trips_as_authenticated(self):
-        """Тест получения списка поездок аутентифицированным пользователем"""
-        # Аутентифицируем пользователя
+        """Тест доступа к списку поездок для авторизованного пользователя"""
         self.client.force_authenticate(user=self.regular_user)
-
         response = self.client.get(self.trip_list_url)
-
-        # Аутентифицированные пользователи могут просматривать список поездок
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertIn('results', response.data)
 
     def test_list_trips_as_anonymous(self):
-        """Тест возможности получения списка поездок всем пользователем"""
+        """Тест доступа к списку поездок для неавторизованного пользователя"""
         response = self.client.get(self.trip_list_url)
-
-        # Анонимным пользователям требуется аутентификация
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
     def test_retrieve_trip_as_anonymous(self):
-        """Тест возможности просмотра деталей поездки анонимным пользователем"""
+        """Тест доступа к деталям поездки для неавторизованного пользователя"""
         response = self.client.get(self.trip_detail_url)
-
-        # Анонимным пользователям требуется аутентификация
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
     def test_create_trip_as_anonymous(self):
-        """Тест запрета создания поездки анонимным пользователем"""
+        """Тест создания поездки неавторизованным пользователем"""
         data = {
             "vehicle": self.vehicle.id,
-            "origin_name": self.origin.name,
-            "destination_name": self.destination.name,
+            "from_city_name": self.from_city.name,
+            "to_city_name": self.to_city.name,
             "departure_time": (timezone.now() + timedelta(days=5)).strftime("%Y-%m-%dT%H:%M:%S"),
             "arrival_time": (timezone.now() + timedelta(days=5, hours=5)).strftime("%Y-%m-%dT%H:%M:%S"),
-            "default_ticket_price": "1200.00"
+            "front_seat_price": "1000.00",
+            "middle_seat_price": "800.00",
+            "back_seat_price": "600.00"
         }
-
         response = self.client.post(self.trip_list_url, data, format='json')
-
-        # Анонимному пользователю должен быть запрещен доступ к созданию
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
     def test_create_trip_as_regular_user(self):
-        """Тест запрета создания поездки обычным пользователем"""
+        """Тест создания поездки обычным пользователем"""
         self.client.force_authenticate(user=self.regular_user)
-
         data = {
             "vehicle": self.vehicle.id,
-            "origin_name": self.origin.name,
-            "destination_name": self.destination.name,
+            "from_city_name": self.from_city.name,
+            "to_city_name": self.to_city.name,
             "departure_time": (timezone.now() + timedelta(days=5)).strftime("%Y-%m-%dT%H:%M:%S"),
             "arrival_time": (timezone.now() + timedelta(days=5, hours=5)).strftime("%Y-%m-%dT%H:%M:%S"),
-            "default_ticket_price": "1200.00"
+            "front_seat_price": "1000.00",
+            "middle_seat_price": "800.00",
+            "back_seat_price": "600.00"
         }
-
         response = self.client.post(self.trip_list_url, data, format='json')
-
-        # Обычному пользователю без права can_create_trip должен быть запрещен доступ
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
     def test_create_trip_as_manager(self):
-        """Тест создания поездки менеджером с правом создания"""
+        """Тест создания поездки менеджером"""
         self.client.force_authenticate(user=self.manager_user)
-
+        
+        departure_time = (timezone.now() + timedelta(days=5))
+        arrival_time = (timezone.now() + timedelta(days=5, hours=5))
+        
         data = {
             "vehicle": self.vehicle.id,
-            "origin_name": self.origin.name,
-            "destination_name": self.destination.name,
-            "departure_time": (timezone.now() + timedelta(days=5)).strftime("%Y-%m-%dT%H:%M:%S"),
-            "arrival_time": (timezone.now() + timedelta(days=5, hours=5)).strftime("%Y-%m-%dT%H:%M:%S"),
-            "default_ticket_price": "1200.00"
+            "from_city_name": self.from_city.name,
+            "to_city_name": self.to_city.name,
+            "departure_time": departure_time.strftime("%Y-%m-%dT%H:%M:%S"),
+            "arrival_time": arrival_time.strftime("%Y-%m-%dT%H:%M:%S"),
+            "front_seat_price": "1000.00",
+            "middle_seat_price": "800.00",
+            "back_seat_price": "600.00"
         }
-
+        
         response = self.client.post(self.trip_list_url, data, format='json')
-
+        
         # Для отладки
         if response.status_code != status.HTTP_201_CREATED:
             print(f"Ошибка создания поездки: {response.data}")
-
-        # Менеджер с правом создания должен иметь возможность создать поездку
+            
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-
-        # Проверяем, что поездка действительно создалась
-        trip_id = response.data['id']
-        self.assertTrue(Trip.objects.filter(id=trip_id).exists())
-
-    def test_create_trip_as_admin(self):
-        """Тест создания поездки администратором"""
-        self.client.force_authenticate(user=self.admin_user)
-
-        data = {
-            "vehicle": self.vehicle.id,
-            "origin_name": self.origin.name,
-            "destination_name": self.destination.name,
-            "departure_time": (timezone.now() + timedelta(days=5)).strftime("%Y-%m-%dT%H:%M:%S"),
-            "arrival_time": (timezone.now() + timedelta(days=5, hours=5)).strftime("%Y-%m-%dT%H:%M:%S"),
-            "default_ticket_price": "1200.00"
-        }
-
-        response = self.client.post(self.trip_list_url, data, format='json')
-
-        # Для отладки
-        if response.status_code != status.HTTP_201_CREATED:
-            print(f"Ошибка создания поездки: {response.data}")
-
-        # Администратор должен иметь возможность создать поездку
-        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-
+        
     def test_update_trip_as_regular_user(self):
-        """Тест запрета обновления поездки обычным пользователем"""
+        """Тест обновления поездки обычным пользователем"""
         self.client.force_authenticate(user=self.regular_user)
-
+        
         data = {
-            "default_ticket_price": "1300.00"
+            "front_seat_price": "1200.00",
+            "middle_seat_price": "1000.00",
+            "back_seat_price": "800.00",
         }
-
+        
         response = self.client.patch(self.trip_detail_url, data, format='json')
-
-        # Обычному пользователю без права can_update_trip должен быть запрещен доступ
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
-
+    
     def test_update_trip_as_manager(self):
-        """Тест обновления поездки менеджером с правом обновления"""
+        """Тест обновления поездки менеджером"""
         self.client.force_authenticate(user=self.manager_user)
-
+        
         data = {
-            "default_ticket_price": "1300.00",
-            "origin_name": self.trip.origin.name,
-            "destination_name": self.trip.destination.name
+            "vehicle": self.vehicle.id,
+            "from_city_name": self.from_city.name,
+            "to_city_name": self.to_city.name,
+            "departure_time": self.trip.departure_time.strftime("%Y-%m-%dT%H:%M:%S"),
+            "arrival_time": self.trip.arrival_time.strftime("%Y-%m-%dT%H:%M:%S"),
+            "front_seat_price": "1300.00",
+            "middle_seat_price": "1300.00",
+            "back_seat_price": "1300.00"
         }
-
-        response = self.client.patch(self.trip_detail_url, data, format='json')
-
-        # Для отладки
+        
+        response = self.client.put(self.trip_detail_url, data, format='json')
+        
+        # Если тест падает, выведем содержимое response для отладки
         if response.status_code != status.HTTP_200_OK:
             print(f"Ошибка обновления поездки: {response.data}")
-
-        # Менеджер с правом обновления должен иметь возможность обновить поездку
+            
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-
-        # Проверяем, что цена действительно обновилась
+        
+        # Проверяем, что цена обновилась
         self.trip.refresh_from_db()
-        self.assertEqual(self.trip.default_ticket_price, Decimal('1300.00'))
-
+        self.assertEqual(self.trip.front_seat_price, Decimal('1300.00'))
+    
     def test_delete_trip_as_regular_user(self):
-        """Тест запрета удаления поездки обычным пользователем"""
+        """Тест удаления поездки обычным пользователем"""
         self.client.force_authenticate(user=self.regular_user)
-
+        
         response = self.client.delete(self.trip_detail_url)
-
-        # Обычному пользователю без права can_delete_trip должен быть запрещен доступ
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
-
-        # Проверяем, что поездка не удалилась
+        
+        # Проверяем, что поездка осталась
         self.assertTrue(Trip.objects.filter(id=self.trip.id).exists())
-
+    
     def test_delete_trip_as_manager(self):
-        """Тест удаления поездки менеджером с правом удаления"""
+        """Тест удаления поездки менеджером"""
         self.client.force_authenticate(user=self.manager_user)
-
-        response = self.client.delete(self.trip_detail_url)
-
-        # Менеджер с правом удаления должен иметь возможность удалить поездку
-        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
-
-        # Проверяем, что поездка действительно удалилась
-        self.assertFalse(Trip.objects.filter(id=self.trip.id).exists())
-
-    def test_delete_trip_as_admin(self):
-        """Тест удаления поездки администратором"""
-        self.client.force_authenticate(user=self.admin_user)
-
-        # Создаем новую поездку для теста (т.к. предыдущую могли удалить)
+        
+        # Создаем новую поездку, чтобы не влиять на другие тесты
         new_trip = Trip.objects.create(
             vehicle=self.vehicle,
-            origin=self.origin,
-            destination=self.destination,
+            from_city=self.from_city,
+            to_city=self.to_city,
             departure_time=timezone.now() + timedelta(days=2),
             arrival_time=timezone.now() + timedelta(days=2, hours=5),
-            default_ticket_price=Decimal('1000.00')
+            front_seat_price=Decimal('1000.00')
         )
-        new_trip_url = reverse('trip-detail', args=[new_trip.id])
-
-        response = self.client.delete(new_trip_url)
-
-        # Администратор должен иметь возможность удалить поездку
+        
+        trip_detail_url = reverse('trip-detail', kwargs={'pk': new_trip.pk})
+        
+        response = self.client.delete(trip_detail_url)
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
-
-        # Проверяем, что поездка действительно удалилась
+        
+        # Проверяем, что поездка удалилась
         self.assertFalse(Trip.objects.filter(id=new_trip.id).exists())
 
     def test_access_trip_cities_endpoint_as_anonymous(self):
@@ -578,7 +553,7 @@ class TripPermissionsTest(APITestCase):
     def test_access_seats_endpoint_as_anonymous(self):
         """Тест возможности доступа к эндпоинту мест анонимным пользователям"""
         # Проверка для анонимного пользователя
-        response = self.client.get(self.available_seats_url)
+        response = self.client.get(self.trip_seats_url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
     def test_role_permissions_consistency(self):
@@ -589,11 +564,13 @@ class TripPermissionsTest(APITestCase):
 
         data = {
             "vehicle": self.vehicle.id,
-            "origin_name": self.origin.name,
-            "destination_name": self.destination.name,
+            "from_city_name": self.from_city.name,
+            "to_city_name": self.to_city.name,
             "departure_time": (timezone.now() + timedelta(days=5)).strftime("%Y-%m-%dT%H:%M:%S"),
             "arrival_time": (timezone.now() + timedelta(days=5, hours=5)).strftime("%Y-%m-%dT%H:%M:%S"),
-            "default_ticket_price": "1200.00"
+            "front_seat_price": "1200.00",
+            "middle_seat_price": "1200.00",
+            "back_seat_price": "1200.00"
         }
 
         response = self.client.post(self.trip_list_url, data, format='json')

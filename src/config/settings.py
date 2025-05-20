@@ -12,6 +12,7 @@ https://docs.djangoproject.com/en/5.1/ref/settings/
 
 from pathlib import Path
 from datetime import timedelta
+import sys
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -26,7 +27,7 @@ SECRET_KEY = 'django-insecure-!k4=w#1#!b1=hl9)z-t#z5kw@t79*%s7l^91t3j44mpje#0+v0
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['localhost', '127.0.0.1', 'web']
+ALLOWED_HOSTS = ['localhost', '127.0.0.1', 'web', '150.241.82.170']
 
 TELEGRAM_BOT_TOKEN='7553600402:AAFvb8DvJQXpCsrmoABNtw0qw-q8R6izMNw'
 
@@ -57,10 +58,12 @@ INSTALLED_APPS = [
     'phonenumber_field',
     'drf_yasg',
     'django_filters',
+    'corsheaders',
 ]
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'corsheaders.middleware.CorsMiddleware',  # CORS middleware добавлен перед CommonMiddleware
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -157,6 +160,7 @@ REST_FRAMEWORK = {
     ],
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 20,
+    'EXCEPTION_HANDLER': 'utils.exception_handlers.custom_exception_handler',
 }
 
 SIMPLE_JWT = {
@@ -226,6 +230,43 @@ CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
 
 APPEND_SLASH = False
 
+# Настройки CORS для Flutter
+CORS_ALLOW_ALL_ORIGINS = True  # В продакшене лучше заменить на конкретные домены
+
+# Для продакшена можно указать конкретные домены:
+# CORS_ALLOWED_ORIGINS = [
+#     "https://example.com",
+#     "https://app.example.com",
+#     "http://localhost:8000",
+#     "http://127.0.0.1:9000",
+# ]
+
+# Разрешить все методы HTTP
+CORS_ALLOW_METHODS = [
+    "DELETE",
+    "GET",
+    "OPTIONS",
+    "PATCH",
+    "POST",
+    "PUT",
+]
+
+# Разрешить все заголовки
+CORS_ALLOW_HEADERS = [
+    "accept",
+    "accept-encoding",
+    "authorization",
+    "content-type",
+    "dnt",
+    "origin",
+    "user-agent",
+    "x-csrftoken",
+    "x-requested-with",
+]
+
+# Разрешить отправку куки
+CORS_ALLOW_CREDENTIALS = True
+
 # Internationalization
 # https://docs.djangoproject.com/en/5.1/topics/i18n/
 
@@ -247,3 +288,6 @@ STATIC_URL = 'static/'
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# Определяем, запущены ли тесты
+RUNNING_TESTS = 'test' in sys.argv

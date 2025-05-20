@@ -38,7 +38,7 @@ class HasTripPermission(permissions.BasePermission):
             return True
 
         # Просмотр доступен всем пользователям
-        if view.action in ['retrieve', 'seats']:
+        if view.action in ['list', 'retrieve', 'seats']:
             return True
 
         # Обновление требует наличия права can_update_trip

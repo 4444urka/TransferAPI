@@ -61,8 +61,8 @@ def format_booking(index, booking):
     text = (
         f"🚖 Бронирование #{index}!\n"
         f"📅 Дата: {booking_date}\n"
-        f"📍 Откуда: г. {booking["trip"]["origin"]["name"]}, {booking['pickup_location']}\n"
-        f"🏁 Куда: г. {booking["trip"]["destination"]["name"]}, {booking['dropoff_location']}\n"
+        f"📍 Откуда: г. {booking['trip']['from_city']['name']}, {booking['pickup_location']}\n"
+        f"🏁 Куда: г. {booking['trip']['to_city']['name']}, {booking['dropoff_location']}\n"
         f"💵 Стоимость: {price_str}\n"
         f"💺 Места: {seats_info if seats_info else 'Не указаны'}\n"
         f"🔹 Статус: {status}"

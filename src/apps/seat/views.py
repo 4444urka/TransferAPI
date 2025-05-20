@@ -13,6 +13,7 @@ from apps.seat.serializers import SeatSerializer
 from apps.vehicle.models import Vehicle
 from .services.seat_service import SeatService
 
+seat_service = SeatService()
 
 class SeatViewSet(mixins.ListModelMixin,
                   mixins.RetrieveModelMixin,
@@ -34,7 +35,7 @@ class SeatViewSet(mixins.ListModelMixin,
 
     """
 
-    seat_service = SeatService()
+    queryset = Seat.objects.all()
     serializer_class = SeatSerializer
 
     # Получаем пермишеки 😘
@@ -48,7 +49,7 @@ class SeatViewSet(mixins.ListModelMixin,
     )
     def list(self, request, *args, **kwargs):
         try: 
-            seats = self.seat_service.get_all_seats()
+            seats = seat_service.get_all_seats()
             serializer = self.get_serializer(seats, many=True)
             return Response(serializer.data)
         except Exception as e:
@@ -62,7 +63,7 @@ class SeatViewSet(mixins.ListModelMixin,
     )
     def retrieve(self, request, *args, **kwargs):
         try:
-            seat = self.seat_service.get_seat_by_id(kwargs.get('pk'))
+            seat = seat_service.get_seat_by_id(kwargs.get('pk'))
             serializer = self.get_serializer(seat)
             return Response(serializer.data)
         except Exception as e:
@@ -76,7 +77,7 @@ class SeatViewSet(mixins.ListModelMixin,
         request_body=openapi.Schema(
             type=openapi.TYPE_OBJECT,
             properties={
-                'seat_type': openapi.Schema(type=openapi.TYPE_STRING, description='Тип места (front, middle, back)')
+                'price_zone': openapi.Schema(type=openapi.TYPE_STRING, description='Тип места (front, middle, back)')
             }
         )
     )
@@ -85,7 +86,7 @@ class SeatViewSet(mixins.ListModelMixin,
 
     def _update(self, request, partial: bool):
         try:
-            seat = self.seat_service.get_seat_by_id(self.kwargs.get('pk'))
+            seat = seat_service.get_seat_by_id(self.kwargs.get('pk'))
         except Exception as e:
             return Response({"detail": str(e)}, status=status.HTTP_404_NOT_FOUND)
 
@@ -93,7 +94,7 @@ class SeatViewSet(mixins.ListModelMixin,
         serializer.is_valid(raise_exception=True)
         
         try:
-            updated_seat = self.seat_service.update_seat(seat.id, serializer.validated_data)
+            updated_seat = seat_service.update_seat(seat.id, serializer.validated_data)
             output_serializer = self.get_serializer(updated_seat)
             return Response(output_serializer.data)
         except Exception as e:
@@ -132,11 +133,11 @@ class SeatViewSet(mixins.ListModelMixin,
         ],
         tags=["Места"]
     )
-    @action(detail=False, methods=['get'], url_path='by_vehicle/(?P<vehicle_id>\d+)')
+    @action(detail=False, methods=['get'], url_path=r'by_vehicle/(?P<vehicle_id>\d+)')
     def get_seats_by_vehicle(self, request, vehicle_id=None):
         """Получение списка мест для конкретного транспортного средства"""
         try:
-            seats = self.seat_service.get_seats_by_vehicle(vehicle_id)
+            seats = seat_service.get_seats_by_vehicle(vehicle_id)
             serializer = self.get_serializer(seats, many=True)
             return Response(serializer.data, status=status.HTTP_200_OK)
         except Exception as e:

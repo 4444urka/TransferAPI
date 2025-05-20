@@ -1,0 +1,53 @@
+name: Deploy to Develop Server
+
+on:
+  push:
+    branches:
+      - develop
+
+jobs:
+  deploy:
+    name: Deploy to Develop
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Add server to known_hosts
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -H ${{ secrets.DEV_SERVER_HOST }} >> ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+        shell: bash
+
+      - name: Install sshpass
+        run: sudo apt-get update && sudo apt-get install -y sshpass
+        shell: bash
+
+      - name: Deploy to server
+        env:
+          DEV_USER: ${{ secrets.DEV_SERVER_USER }}
+          DEV_HOST: ${{ secrets.DEV_SERVER_HOST }}
+          DEV_SERVER_PASSWORD: ${{ secrets.DEV_SERVER_PASSWORD }}
+        run: |
+          sshpass -p "$DEV_SERVER_PASSWORD" ssh -o StrictHostKeyChecking=no $DEV_USER@$DEV_HOST << 'EOF'
+            cd TransferAPI
+            git checkout develop
+            git pull origin develop
+            echo "Pulled latest changes from develop"
+            
+            echo "Building Docker containers..."
+            docker compose build
+            
+            echo "Starting Docker containers..."
+            docker compose up -d
+            
+            echo "Applying migrations..."
+            docker compose exec -T web python src/manage.py migrate
+            
+            echo "Cleaning up old Docker images..."
+            docker image prune -af
+            
+            echo "Deployment to develop server finished."
+          EOF
+        shell: bash

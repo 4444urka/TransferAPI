@@ -25,13 +25,13 @@ class Trip(models.Model):
         default=1,
         verbose_name="Транспорт"
         )
-    origin = models.ForeignKey(
+    from_city = models.ForeignKey(
         City,
         on_delete=models.CASCADE,
         related_name='departures',
         verbose_name="Город отправления"
     )
-    destination = models.ForeignKey(
+    to_city = models.ForeignKey(
         City,
         on_delete=models.CASCADE,
         related_name='arrivals',
@@ -44,12 +44,21 @@ class Trip(models.Model):
         verbose_name="Дата и время прибытия"
         )
 
-    default_ticket_price = models.DecimalField(
-        max_digits=10, decimal_places=2, 
-        default=0, verbose_name="Цена билета"
-        )
-    
+    front_seat_price = models.DecimalField(
+        max_digits=10, decimal_places=2,
+        default=0, verbose_name="Цена переднего места"
+    )
+    middle_seat_price = models.DecimalField(
+        max_digits=10, decimal_places=2,
+        default=0, verbose_name="Цена среднего места"
+    )
+    back_seat_price = models.DecimalField(
+        max_digits=10, decimal_places=2,
+        default=0, verbose_name="Цена заднего места"
+    )
+
     is_bookable = models.BooleanField(default=True, verbose_name="Доступна для бронирования")
+    is_active = models.BooleanField(default=True, verbose_name="Поездка активна")
     booking_cutoff_minutes = models.PositiveIntegerField(
         default=30,
         verbose_name="Время до начала поездки за которое нельзя бронировать поездку (в минутах)",
@@ -62,7 +71,7 @@ class Trip(models.Model):
         app_label = 'transfer_trip'
 
     def __str__(self):
-        return f"{self.departure_time.strftime('%Y-%m-%d %H:%M')}: {self.origin} - {self.destination}"
+        return f"{self.departure_time.strftime('%Y-%m-%d %H:%M')}: {self.from_city} - {self.to_city}"
 
     def clean(self):
         """Универсальная валидация для всех способов сохранения"""
@@ -79,9 +88,9 @@ class Trip(models.Model):
             })
 
         # Добавляем проверку: город отправления должен отличаться от города прибытия
-        if self.origin == self.destination:
+        if self.from_city == self.to_city:
             raise ValidationError({
-                'destination': 'Город назначения должен отличаться от города отправления'
+                'to_city': 'Город назначения должен отличаться от города отправления'
             })
 
         # Проверка пересечения временных интервалов
@@ -96,10 +105,18 @@ class Trip(models.Model):
                 'vehicle': f'Транспорт занят с {conflicts[0].departure_time} до {conflicts[0].arrival_time}'
             })
 
-        # Проверка цены
-        if self.default_ticket_price < 0:
+        # Проверка цен
+        if self.front_seat_price < 0:
             raise ValidationError({
-                'default_ticket_price': 'Цена не может быть отрицательной'
+                'front_seat_price': 'Цена переднего места не может быть отрицательной'
+            })
+        if self.middle_seat_price < 0:
+            raise ValidationError({
+                'middle_seat_price': 'Цена среднего места не может быть отрицательной'
+            })
+        if self.back_seat_price < 0:
+            raise ValidationError({
+                'back_seat_price': 'Цена заднего места не может быть отрицательной'
             })
         
         # Проверка времени до отправления
@@ -113,4 +130,3 @@ class Trip(models.Model):
         self.full_clean()
         super().save(*args, **kwargs)
 
-    

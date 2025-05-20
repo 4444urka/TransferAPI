@@ -178,11 +178,11 @@ class VehicleModelTest(TestCase):
 
         # Проверяем типы мест
         first_bus_seat = bus_seats.order_by('seat_number').first()
-        self.assertEqual(first_bus_seat.seat_type, 'front')
+        self.assertEqual(first_bus_seat.price_zone, 'front')
 
         other_bus_seats = bus_seats.exclude(id=first_bus_seat.id)
         for seat in other_bus_seats:
-            self.assertEqual(seat.seat_type, 'back')
+            self.assertEqual(seat.price_zone, 'back')
 
     def test_vehicle_update_seats(self):
         """Тест обновления мест при изменении total_seats"""
@@ -210,15 +210,17 @@ class VehicleModelTest(TestCase):
     def test_cannot_delete_booked_seats(self):
         """Тест запрета удаления мест, которые забронированы"""
         # Создаем поездку
-        origin = City.objects.create(name='Москва')
-        destination = City.objects.create(name='Санкт-Петербург')
+        from_city = City.objects.create(name='Москва')
+        to_city = City.objects.create(name='Санкт-Петербург')
         trip = Trip.objects.create(
             vehicle=self.bus,
-            origin=origin,
-            destination=destination,
+            from_city=from_city,
+            to_city=to_city,
             departure_time=timezone.now() + timedelta(days=1),
             arrival_time=timezone.now() + timedelta(days=1, hours=5),
-            default_ticket_price=Decimal('1000.00')
+            front_seat_price=Decimal('1000.00'),
+            middle_seat_price=Decimal('1000.00'),
+            back_seat_price=Decimal('1000.00')
         )
 
         # Бронируем последнее место
@@ -250,15 +252,17 @@ class VehicleModelTest(TestCase):
     def test_vehicle_with_trip_seats(self):
         """Тест создания TripSeats при создании поездки для транспорта"""
         # Создаем поездку
-        origin = City.objects.create(name='Москва')
-        destination = City.objects.create(name='Санкт-Петербург')
+        from_city = City.objects.create(name='Москва')
+        to_city = City.objects.create(name='Санкт-Петербург')
         trip = Trip.objects.create(
             vehicle=self.car,
-            origin=origin,
-            destination=destination,
+            from_city=from_city,
+            to_city=to_city,
             departure_time=timezone.now() + timedelta(days=1),
             arrival_time=timezone.now() + timedelta(days=1, hours=2),
-            default_ticket_price=Decimal('500.00')
+            front_seat_price=Decimal('500.00'),
+            middle_seat_price=Decimal('500.00'),
+            back_seat_price=Decimal('500.00')
         )
 
         # Проверяем, что для каждого места создан TripSeat
@@ -534,8 +538,8 @@ class VehicleAPITest(APITestCase):
         """Тест проверки доступности транспортного средства"""
         self.client.force_authenticate(user=self.regular_user)
 
-        origin = City.objects.create(name='Москва')
-        destination = City.objects.create(name='Санкт-Петербург')
+        from_city = City.objects.create(name='Москва')
+        to_city = City.objects.create(name='Санкт-Петербург')
 
         now = timezone.now()
         trip_start = now + timedelta(days=1)
@@ -543,11 +547,13 @@ class VehicleAPITest(APITestCase):
 
         Trip.objects.create(
             vehicle=self.vehicle1,
-            origin=origin,
-            destination=destination,
+            from_city=from_city,
+            to_city=to_city,
             departure_time=trip_start,
             arrival_time=trip_end,
-            default_ticket_price=Decimal('1000.00')
+            front_seat_price=Decimal('1000.00'),
+            middle_seat_price=Decimal('1000.00'),
+            back_seat_price=Decimal('1000.00')
         )
 
         # Убираем микросекунды и не добавляем «Z»

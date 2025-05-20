@@ -27,7 +27,7 @@ class TripService:
     def get_trip_queryset(self):
         """Получение базового queryset для поездок с оптимизацией"""
         return Trip.objects.select_related(
-            'origin', 'destination', 'vehicle'
+            'from_city', 'to_city', 'vehicle'
         )
 
     def get_cities(self):

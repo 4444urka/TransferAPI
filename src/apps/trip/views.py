@@ -12,10 +12,13 @@ from rest_framework import status
 from .filters import TripFilter
 from .models import Trip
 from .permissions import HasTripPermission
-from .serializers import TripListSerializer, TripDetailSerializer, TripCreateUpdateSerializer
+from .serializers import TripDetailSerializer, TripCreateUpdateSerializer
 from .services.TripService import TripService
 from apps.seat.models import TripSeat
 from apps.seat.serializers import TripSeatSerializer
+
+trip_service = TripService()
+
 
 class TripViewSet(viewsets.ModelViewSet):
     """
@@ -34,22 +37,18 @@ class TripViewSet(viewsets.ModelViewSet):
         filters.OrderingFilter
     ]
     filterset_class = TripFilter
-    search_fields = ['origin__name', 'destination__name']
+    search_fields = ['from_city__name', 'to_city__name']
     permission_classes = [IsAuthenticated, HasTripPermission]
-    ordering_fields = ['departure_time', 'arrival_time', 'default_ticket_price']
+    ordering_fields = ['departure_time', 'arrival_time', 'front_seat_price', 'middle_seat_price', 'back_seat_price']
     ordering = ['departure_time']
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.trip_service = TripService()
 
     @swagger_auto_schema(
         operation_description="Получение списка доступных поездок с возможностью фильтрации по множеству параметров",
         operation_summary="Список поездок",
         manual_parameters=[
-            openapi.Parameter('origin', openapi.IN_QUERY, description="ID города отправления",
+            openapi.Parameter('from_city', openapi.IN_QUERY, description="ID города отправления",
                               type=openapi.TYPE_INTEGER),
-            openapi.Parameter('destination', openapi.IN_QUERY, description="ID города назначения",
+            openapi.Parameter('to_city', openapi.IN_QUERY, description="ID города назначения",
                               type=openapi.TYPE_INTEGER),
             openapi.Parameter('date', openapi.IN_QUERY, description="Дата поездки (YYYY-MM-DD)",
                               type=openapi.TYPE_STRING, format=openapi.FORMAT_DATE),
@@ -70,9 +69,6 @@ class TripViewSet(viewsets.ModelViewSet):
             openapi.Parameter('ordering', openapi.IN_QUERY,
                               description="Поле для сортировки (departure_time, -departure_time, default_ticket_price, -default_ticket_price, arrival_time, -arrival_time)",
                               type=openapi.TYPE_STRING),
-            openapi.Parameter('current', openapi.IN_QUERY, 
-                              description="Флаг для фильтрации актуальных поездок (true/false). Если true, возвращаются только поездки, у которых departure_time >= текущему времени.",
-                              type=openapi.TYPE_BOOLEAN),
             openapi.Parameter('is_bookable', openapi.IN_QUERY, 
                               description="Фильтр по возможности бронирования (true/false)", 
                               type=openapi.TYPE_BOOLEAN),
@@ -105,26 +101,26 @@ class TripViewSet(viewsets.ModelViewSet):
         validated_data = serializer.validated_data.copy()
         
         # Обрабатываем данные о городах
-        if 'origin_name' in validated_data:
-            origin_name = validated_data.pop('origin_name')
+        if 'from_city_name' in validated_data:
+            from_city_name = validated_data.pop('from_city_name')
             try:
                 from .services.CityService import CityService
                 city_service = CityService()
-                origin = city_service.get_by_name(origin_name)
-                validated_data['origin'] = origin
+                from_city = city_service.get_by_name(from_city_name)
+                validated_data['from_city'] = from_city
             except Exception as e:
                 return Response(
                     {"error": f"Не удалось найти город отправления: {str(e)}"}, 
                     status=status.HTTP_400_BAD_REQUEST
                 )
                 
-        if 'destination_name' in validated_data:
-            destination_name = validated_data.pop('destination_name')
+        if 'to_city_name' in validated_data:
+            to_city_name = validated_data.pop('to_city_name')
             try:
                 from .services.CityService import CityService
                 city_service = CityService()
-                destination = city_service.get_by_name(destination_name)
-                validated_data['destination'] = destination
+                to_city = city_service.get_by_name(to_city_name)
+                validated_data['to_city'] = to_city
             except Exception as e:
                 return Response(
                     {"error": f"Не удалось найти город назначения: {str(e)}"}, 
@@ -132,7 +128,7 @@ class TripViewSet(viewsets.ModelViewSet):
                 )
         
         # Создаем поездку через сервис
-        trip = self.trip_service.create_trip(validated_data)
+        trip = trip_service.create_trip(validated_data)
         
         # Возвращаем созданную поездку
         result_serializer = TripDetailSerializer(trip)
@@ -149,7 +145,7 @@ class TripViewSet(viewsets.ModelViewSet):
         instance = self.get_object()
         serializer = self.get_serializer(instance, data=request.data, partial=partial)
         serializer.is_valid(raise_exception=True)
-        trip = self.trip_service.update_trip(instance, serializer.validated_data)
+        trip = trip_service.update_trip(instance, serializer.validated_data)
         return Response(serializer.data)
 
     @swagger_auto_schema(
@@ -167,16 +163,14 @@ class TripViewSet(viewsets.ModelViewSet):
     )
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
-        self.trip_service.delete_trip(instance)
+        trip_service.delete_trip(instance)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
     def get_serializer_class(self):
         if self.action in ['create', 'update', 'partial_update']:
             return TripCreateUpdateSerializer
-        elif self.action == 'retrieve':
-            return TripDetailSerializer
         else:
-            return TripListSerializer
+            return TripDetailSerializer
 
     def get_permissions(self):
         """
@@ -188,7 +182,7 @@ class TripViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         """Базовая фильтрация"""
-        return self.trip_service.get_trip_queryset()
+        return trip_service.get_trip_queryset()
 
     @swagger_auto_schema(
         operation_description="Получение списка городов",
@@ -199,10 +193,10 @@ class TripViewSet(viewsets.ModelViewSet):
     @method_decorator(cache_page(60 * 60))  # кэш на 1 час, так как список городов меняется редко
     def cities(self, request):
         """Получение списка городов для фильтрации"""
-        cities = self.trip_service.get_cities()
+        cities = trip_service.get_cities()
         return Response({
-            'origin_cities': [{'id': c.id, 'name': c.name} for c in cities],
-            'destination_cities': [{'id': c.id, 'name': c.name} for c in cities]
+            'from_city_cities': [{'id': c.id, 'name': c.name} for c in cities],
+            'to_city_cities': [{'id': c.id, 'name': c.name} for c in cities]
         })
 
     @swagger_auto_schema(

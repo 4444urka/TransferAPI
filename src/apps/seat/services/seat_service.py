@@ -45,14 +45,14 @@ class SeatService:
     def update_seat(self, seat_id: int, data: dict) -> Seat:
         """
         Обновить данные места.
-        Выполняется обновление только разрешенных полей (например, is_booked, seat_type).
+        Выполняется обновление только разрешенных полей (например, is_booked, price_zone).
         """
         self.logger.debug(f"Trying to update seat: {seat_id}")
         try:
             seat = self.get_seat_by_id(seat_id)
             
             # Обновляем только разрешенные поля
-            allowed_fields = ['seat_type']
+            allowed_fields = ['price_zone']
             updated_fields = []
             for field in allowed_fields:
                 if field in data:

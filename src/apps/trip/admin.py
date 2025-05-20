@@ -15,19 +15,19 @@ class TripAdminForm(forms.ModelForm):
 
 @admin.register(Trip)
 class TripAdmin(admin.ModelAdmin):
-    list_display = ('vehicle', 'origin', 'destination', 'departure_time', 'arrival_time', 'default_ticket_price', 'is_bookable', 'booking_cutoff_minutes')
-    list_filter = ('vehicle', 'origin', 'destination', 'departure_time', 'is_bookable')
-    search_fields = ('vehicle__license_plate', 'origin__name', 'destination__name', 'is_bookable')
+    list_display = ('vehicle', 'from_city', 'to_city', 'departure_time', 'arrival_time', 'front_seat_price', 'middle_seat_price', 'back_seat_price', 'is_bookable', 'booking_cutoff_minutes')
+    list_filter = ('vehicle', 'from_city', 'to_city', 'departure_time', 'is_bookable')
+    search_fields = ('vehicle__license_plate', 'from_city__name', 'to_city__name', 'is_bookable')
     fieldsets = (
         (None, {
-            'fields': ('vehicle', 'origin', 'destination')
+            'fields': ('vehicle', 'from_city', 'to_city')
         }),
         ('Время', {
             'fields': (('departure_time', 'arrival_time'),),
             'description': '<div class="help">Все времена указываются в часовом поясе сервера (UTC+10)</div>'
         }),
         ('Цена', {
-            'fields': ('default_ticket_price',)
+            'fields': ('front_seat_price', 'middle_seat_price', 'back_seat_price')
         }),
         ('Дополнительные данные', {
             'fields': ('is_bookable', 'booking_cutoff_minutes'),
@@ -49,4 +49,4 @@ class TripAdmin(admin.ModelAdmin):
             obj.full_clean() 
             super().save_model(request, obj, form, change)
         except forms.ValidationError as e:
-            form.add_error(None, e) 
+            form.add_error(None, e)

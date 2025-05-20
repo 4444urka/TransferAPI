@@ -8,17 +8,20 @@ from django_filters.rest_framework import DjangoFilterBackend
 from django.core.cache import cache
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404
+from django.core.exceptions import ValidationError
 
 import logging
 
 from .permissions import HasBookingPermission
-from .serializers import BookingSerializer, BookingDetailSerializer
+from .serializers import BookingDetailSerializer
 from .services import BookingService
 from apps.trip.models import Trip
 from apps.seat.models import TripSeat
+from .models import Booking
 
 logger = logging.getLogger(__name__)
 
+bookingService = BookingService
 
 class BookingViewSet(viewsets.ModelViewSet):
     """
@@ -27,48 +30,47 @@ class BookingViewSet(viewsets.ModelViewSet):
     Обычные пользователи видят только свои бронирования.
     Администраторы имеют доступ ко всем бронированиям.
     """
-    serializer_class = BookingSerializer
-    service = BookingService
+    serializer_class = BookingDetailSerializer
     permission_classes = [IsAuthenticated, HasBookingPermission]
+    http_method_names = ['get', 'post', 'delete']
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
-    filterset_fields = ['is_active', 'trip']
-    search_fields = ['trip__origin__name', 'trip__destination__name']
-    ordering_fields = ['booking_datetime', 'trip__departure_time']
+    filterset_fields = ['trip', 'is_active']
+    search_fields = ['trip__from_city__name', 'trip__to_city__name']
+    ordering_fields = ['booking_datetime', 'trip__departure_time', 'trip__arrival_time']
     ordering = ['-booking_datetime']
 
     @swagger_auto_schema(
-        operation_description="Получение списка бронирований. Для обычных пользователей возвращаются только их собственные бронирования, для администраторов - все бронирования.",
+        operation_description="Получение списка бронирований с полными данными о поездке, пользователе и платеже. Для обычных пользователей возвращаются только их собственные бронирования, для администраторов - все бронирования.",
         operation_summary="Список бронирований",
         manual_parameters=[
-            openapi.Parameter('is_active', openapi.IN_QUERY, description="Фильтр по статусу активности (true/false)",
-                              type=openapi.TYPE_BOOLEAN),
-            openapi.Parameter('trip', openapi.IN_QUERY, description="Фильтр по ID поездки",
-                              type=openapi.TYPE_INTEGER),
-            openapi.Parameter('search', openapi.IN_QUERY, description="Поиск по названию городов",
-                              type=openapi.TYPE_STRING),
-            openapi.Parameter('ordering', openapi.IN_QUERY,
-                              description="Поле для сортировки (booking_datetime, -booking_datetime, trip__departure_time, -trip__departure_time)",
-                              type=openapi.TYPE_STRING)
+            openapi.Parameter('is_active', openapi.IN_QUERY, description="Фильтр по статусу активности", type=openapi.TYPE_BOOLEAN),
+            openapi.Parameter('trip', openapi.IN_QUERY, description="Фильтр по ID поездки", type=openapi.TYPE_INTEGER),
+            openapi.Parameter('search', openapi.IN_QUERY, description="Поиск по названию города", type=openapi.TYPE_STRING),
+            openapi.Parameter('ordering', openapi.IN_QUERY, description="Сортировка (например, -booking_datetime)", type=openapi.TYPE_STRING),
         ],
         tags=["Бронирования"]
     )
-    def list(self, request, *args, **kwargs):
-        # Если запрос с параметром detailed=true, попробуем извлечь данные из кэша
-        detailed = request.query_params.get('detailed', 'false').lower() in ['true', '1']
-        if detailed:
-            user = request.user
-            cache_key = f"booking_detailed_{user.id}"
-            cached_data = cache.get(cache_key)
-            if cached_data is not None:
-                logger.debug(f"Using cached bookings data for the user {user.id}")
-                return Response(cached_data)
-        else:
-            logger.debug("Using non-cached bookings data")
-        response = super().list(request, *args, **kwargs)
-        if detailed:
-            logger.debug(f"Caching booking data for the user {request.user.id}")
-            cache.set(cache_key, response.data, timeout=300)
-        return response
+    def get_queryset(self):
+        queryset = Booking.objects.select_related('user', 'trip', 'payment').prefetch_related('trip_seats__seat')
+        
+        # Добавляем специальную обработку для параметра is_active
+        is_active = self.request.query_params.get('is_active')
+        if is_active is not None:
+            # Преобразуем строковое значение в булево
+            is_active_bool = is_active.lower() == 'true'
+            queryset = queryset.filter(is_active=is_active_bool)
+        
+        # Если пользователь не имеет права просматривать все бронирования,
+        # фильтруем только его бронирования
+        if not self.request.user.has_perm('booking.can_view_all_booking') and not self.request.user.is_staff:
+            queryset = queryset.filter(user=self.request.user)
+        
+        # Добавляем отдельную обработку для параметра trip
+        trip = self.request.query_params.get('trip')
+        if trip is not None:
+            queryset = queryset.filter(trip_id=trip)
+            
+        return queryset
 
     @swagger_auto_schema(
         operation_description="Получение детальной информации о бронировании. Пользователь может видеть только свои бронирования. Администратор может видеть любое бронирование.",
@@ -121,23 +123,20 @@ class BookingViewSet(viewsets.ModelViewSet):
     def destroy(self, request, *args, **kwargs):
         return super().destroy(request, *args, **kwargs)
 
-    def get_queryset(self):
-        """Получение списка бронирований с учетом прав доступа"""
-        return self.service.get_user_bookings(self.request.user)
-
     def get_serializer_class(self):
         """
-        Используем подробный сериализатор для действий, которые требуют детальной информации,
-        а для списка можем использовать более компактный вариант.
-        При запросе detailed=true можно выбрать BookingDetailSerializer.
+        Используем BookingDetailSerializer для всех операций.
         """
-        if self.action in ['retrieve', 'create', 'update', 'partial_update']:
-            return BookingDetailSerializer
-        # Если query-параметр detailed=true в списке — возвращаем подробности
-        detailed = self.request.query_params.get('detailed', 'false').lower() in ['true', '1']
-        if detailed:
-            return BookingDetailSerializer
-        return BookingSerializer
+        return BookingDetailSerializer
+        
+    def get_serializer(self, *args, **kwargs):
+        """
+        Переопределяем метод get_serializer для списка бронирований,
+        чтобы всегда возвращались сериализованные вложенные объекты.
+        """
+        serializer_class = self.get_serializer_class()
+        kwargs.setdefault('context', self.get_serializer_context())
+        return serializer_class(*args, **kwargs)
 
     def perform_create(self, serializer):
         """Автоматически устанавливаем текущего пользователя при создании"""
@@ -170,14 +169,23 @@ class BookingViewSet(viewsets.ModelViewSet):
     )
     @action(detail=True, methods=['post'])
     def cancel(self, request, pk=None):
-        """Эндпоинт для отмены бронирования"""
         booking = self.get_object()
         
+        # Проверка, является ли пользователь владельцем бронирования
+        if booking.user != request.user and not request.user.is_staff:
+            return Response({"error": "Вы не можете отменить чужое бронирование"}, status=status.HTTP_403_FORBIDDEN)
+        
+        # Проверка, активно ли бронирование
+        if not booking.is_active:
+            return Response({"error": "Бронирование уже отменено"}, status=status.HTTP_400_BAD_REQUEST)
+            
+        # Отмена бронирования
         try:
-            self.service.cancel_booking(booking)
-            return Response({"detail": "Бронирование успешно отменено"})
-        except ValidationError as e:
-            return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+            BookingService.cancel_booking(booking)
+            return Response({"message": "Бронирование успешно отменено"}, status=status.HTTP_200_OK)
+        except Exception as e:
+            logger.error(f"Error canceling booking: {e}")
+            return Response({"error": f"Ошибка при отмене бронирования: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 def get_trip_seats(request):
     """

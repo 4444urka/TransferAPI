@@ -1,6 +1,6 @@
 from django.test import TestCase
 import logging
-from utils.address.find_street_by_name import find_street_by_name
+from src.utils.address.find_address_by_name import find_address_by_name
 from django.core.cache import cache
 
 # Очистка кэша перед запуском тестов
@@ -34,7 +34,7 @@ class StreetFinderTest(TestCase):
         for address, city in self.test_cases:
             with self.subTest(address=address, city=city):
                 try:
-                    result = find_street_by_name(address, city)
+                    result = find_address_by_name(address, city)
                     self.assertIsNotNone(result, f"Не удалось найти адрес: {address}, {city}")
                     logger.info(f"Успешно обработан адрес: {address}, {city}")
                 except Exception as e:
@@ -53,7 +53,7 @@ class StreetFinderTest(TestCase):
         for address, city in invalid_cases:
             with self.subTest(address=address, city=city):
                 try:
-                    result = find_street_by_name(address, city)
+                    result = find_address_by_name(address, city)
                     self.assertIsNone(result, f"Ожидался None для некорректного адреса: {address}, {city}")
                     logger.info(f"Успешно обработан некорректный адрес: {address}, {city}")
                 except Exception as e:
@@ -72,7 +72,7 @@ class StreetFinderTest(TestCase):
         for address, city in formats:
             with self.subTest(address=address, city=city):
                 try:
-                    result = find_street_by_name(address, city)
+                    result = find_address_by_name(address, city)
                     self.assertIsNotNone(result, f"Не удалось найти адрес: {address}, {city}")
                     logger.info(f"Успешно обработан адрес в формате: {address}, {city}")
                 except Exception as e:

@@ -4,8 +4,8 @@ from apps.seat.models import Seat, TripSeat
 
 @admin.register(Seat)
 class SeatAdmin(admin.ModelAdmin):
-    list_display = ('formatted_seat_number', 'vehicle', 'formatted_seat_type')
-    list_filter = ('vehicle', 'seat_type')
+    list_display = ('formatted_seat_number', 'vehicle', 'formatted_price_zone')
+    list_filter = ('vehicle', 'price_zone')
     search_fields = ('vehicle__license_plate', 'seat_number')
     ordering = ('vehicle', 'seat_number')
 
@@ -16,7 +16,7 @@ class SeatAdmin(admin.ModelAdmin):
         return (
             'formatted_seat_number',
             'vehicle',
-            'formatted_seat_type'
+            'formatted_price_zone'
         )
 
     def formatted_seat_number(self, obj):
@@ -33,12 +33,12 @@ class SeatAdmin(admin.ModelAdmin):
     vehicle_info.short_description = "Транспорт"
     vehicle_info.admin_order_field = 'vehicle__license_plate'
 
-    def formatted_seat_type(self, obj):
-        """Тип места с красивым форматированием"""
-        return obj.get_seat_type_display()
+    def formatted_price_zone(self, obj):
+        """Ценовая зона с красивым форматированием"""
+        return obj.get_price_zone_display()
 
-    formatted_seat_type.short_description = "Тип места"
-    formatted_seat_type.admin_order_field = 'seat_type'
+    formatted_price_zone.short_description = "Ценовая зона"
+    formatted_price_zone.admin_order_field = 'price_zone'
 
     def has_delete_permission(self, request, obj=None):
         """
@@ -59,13 +59,14 @@ class SeatAdmin(admin.ModelAdmin):
 
 @admin.register(TripSeat)
 class TripSeatAdmin(admin.ModelAdmin):
-    list_display = ('id', 'trip', 'seat_info', 'is_booked')
+    list_display = ('id', 'trip', 'seat_info', 'cost', 'is_booked')
     list_filter = ('trip', 'is_booked')
     search_fields = ('trip__id', 'seat__seat_number')
     raw_id_fields = ('trip', 'seat')
+    readonly_fields = ('cost',)
 
     def seat_info(self, obj):
         """Информация о месте"""
-        return f"{obj.seat.vehicle.license_plate} - Место {obj.seat.seat_number} ({obj.seat.get_seat_type_display()})"
+        return f"{obj.seat.vehicle.license_plate} - Место {obj.seat.seat_number} ({obj.seat.get_price_zone_display()})"
 
     seat_info.short_description = "Место"

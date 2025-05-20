@@ -4,8 +4,8 @@ from decimal import Decimal
 from django.core.exceptions import ValidationError
 from .models import Booking
 from apps.seat.models import Seat, TripSeat
-from utils.address import find_street_by_name
-from apps.trip.models import Trip # Импортируем Trip для __init__
+from utils.address import find_address_by_name
+from apps.trip.models import Trip
 
 class BookingForm(forms.ModelForm):
     class Meta:
@@ -17,7 +17,7 @@ class BookingForm(forms.ModelForm):
         
         if self.instance and self.instance.pk and self.instance.trip:
              self.fields['trip_seats'].queryset = TripSeat.objects.filter(trip=self.instance.trip)
-        elif 'trip' in self.initial: # Если trip передан через initial
+        elif 'trip' in self.initial:
             try:
                 trip_id = self.initial['trip']
                 trip = Trip.objects.get(pk=trip_id)
@@ -29,13 +29,6 @@ class BookingForm(forms.ModelForm):
         else:
             # При добавлении, если trip не выбран, JS должен очистить поле
              self.fields['trip_seats'].queryset = TripSeat.objects.none()
-        
-        # Атрибуты id больше не нужны, т.к. JS ищет по name
-        # if 'trip' in self.fields:
-        #     self.fields['trip'].widget.attrs.update({'id': 'id_trip_select'})
-        # if 'trip_seats' in self.fields:
-        #     self.fields['trip_seats'].widget.attrs.update({'id': 'id_trip_seats_select'})
-        #     self.fields['trip_seats'].help_text = "Места появятся после выбора поездки."
 
     def clean_trip_seats(self):
         trip = self.cleaned_data.get('trip')
@@ -63,9 +56,14 @@ class BookingForm(forms.ModelForm):
             for trip_seat in trip_seats:
                 seat = trip_seat.seat
                 # Используем ту же логику расчета, что и в модели
-                # TODO: Убедиться, что логика расчета множителя совпадает с моделью
-                multiplier = Decimal(1.2) if seat.seat_type == "front" else Decimal(1.0)
-                expected_total_price += round(trip.default_ticket_price * multiplier)
+                
+                if seat.price_zone == "front":
+                    expected_total_price += trip.front_seat_price
+                elif seat.price_zone == "middle":
+                    expected_total_price += trip.middle_seat_price
+                elif seat.price_zone == "back":
+                    expected_total_price += trip.back_seat_price
+
             
             # Сравниваем сумму платежа с рассчитанной стоимостью
             if payment.amount != expected_total_price:

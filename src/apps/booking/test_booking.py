@@ -28,8 +28,8 @@ class BookingAPITest(APITestCase):
         self.user = User.objects.create_user('+79111111111', 'userpass')
         
         # Создаем города
-        origin = City.objects.create(name='Москва')
-        destination = City.objects.create(name='Санкт-Петербург')
+        from_city = City.objects.create(name='Москва')
+        to_city = City.objects.create(name='Санкт-Петербург')
         
         # Создаем транспортное средство
         vehicle = Vehicle.objects.create(
@@ -42,8 +42,8 @@ class BookingAPITest(APITestCase):
         # Создаем поездку
         self.trip = Trip.objects.create(
             vehicle=vehicle,
-            origin=origin,
-            destination=destination,
+            from_city=from_city,
+            to_city=to_city,
             departure_time=timezone.now() + timedelta(days=1),
             arrival_time=timezone.now() + timedelta(days=1, hours=5),
             front_seat_price=Decimal('1000.00'),
@@ -58,11 +58,11 @@ class BookingAPITest(APITestCase):
         self.client = APIClient()
         self.client.force_authenticate(user=self.user)
         
-    @patch('utils.address.find_street_by_name')
-    def test_create_booking(self, mock_find_street):
+    @patch('utils.address.find_address_by_name')
+    def test_create_booking(self, mock_find_address):
         """Тест создания бронирования"""
         # Настраиваем мок
-        mock_find_street.return_value = "ул. Тестовая, 1"
+        mock_find_address.return_value = "ул. Ленина, 1"
         
         # Получаем свободное место для бронирования
         available_trip_seat = TripSeat.objects.filter(trip=self.trip, is_booked=False).first()
@@ -78,8 +78,8 @@ class BookingAPITest(APITestCase):
             'trip_id': self.trip.id,
             'seat_numbers': [available_trip_seat.seat.seat_number],
             'payment': {'id': payment.id},
-            'pickup_location': 'ул. Тестовая, 1',
-            'dropoff_location': 'ул. Тестовая, 2',
+            'pickup_location': 'ул. Ленина, 1',
+            'dropoff_location': 'ул. Ленина, 2',
         }
         
         response = self.client.post(self.booking_list_url, data, format='json')

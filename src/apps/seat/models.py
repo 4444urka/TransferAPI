@@ -5,7 +5,7 @@ from apps.vehicle.models import Vehicle
 from apps.trip.models import Trip
 
 # Выбор типа сиденья
-SEAT_TYPES_CHOICES = [
+PRICE_ZONES_CHOICES = [
     ("front", "Переднее"),
     ("middle", "Среднее"),
     ("back", "Заднее"),
@@ -15,11 +15,11 @@ SEAT_TYPES_CHOICES = [
 class Seat(models.Model):
     vehicle = models.ForeignKey(Vehicle, on_delete=models.CASCADE, verbose_name="Транспорт")
     seat_number = models.IntegerField(verbose_name="Номер места")
-    seat_type = models.CharField(
-        choices=SEAT_TYPES_CHOICES,
+    price_zone = models.CharField(
+        choices=PRICE_ZONES_CHOICES,
         max_length=30,
         default="front",
-        verbose_name="Тип места"
+        verbose_name="Ценовая зона"
     )
 
     class Meta:
@@ -71,15 +71,15 @@ class Seat(models.Model):
                 })
 
         # # проверка типа места в зависимости от номера
-        # if self.seat_number == 1 and self.seat_type != "front":
+        # if self.seat_number == 1 and self.price_zone != "front":
         #     raise ValidationError({
-        #         'seat_type': 'Первое место должно быть переднего типа'
+        #         'price_zone': 'Первое место должно быть переднего типа'
         #     })
-        # elif self.seat_number == 1 and self.seat_type == "front":
+        # elif self.seat_number == 1 and self.price_zone == "front":
         #     pass  # первое место переднее - всё ок
-        # elif self.seat_type == "front":
+        # elif self.price_zone == "front":
         #     raise ValidationError({
-        #         'seat_type': 'Только первое место может быть переднего типа'
+        #         'price_zone': 'Только первое место может быть переднего типа'
         #     })        
 
             
@@ -110,7 +110,7 @@ class Seat(models.Model):
         )
 
     def __str__(self):
-        return f"{self.vehicle} - Место {self.seat_number} ({self.get_seat_type_display()})"
+        return f"{self.vehicle} - Место {self.seat_number} ({self.get_price_zone_display()})"
 
 
 class TripSeat(models.Model):

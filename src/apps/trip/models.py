@@ -25,13 +25,13 @@ class Trip(models.Model):
         default=1,
         verbose_name="Транспорт"
         )
-    origin = models.ForeignKey(
+    from_city = models.ForeignKey(
         City,
         on_delete=models.CASCADE,
         related_name='departures',
         verbose_name="Город отправления"
     )
-    destination = models.ForeignKey(
+    to_city = models.ForeignKey(
         City,
         on_delete=models.CASCADE,
         related_name='arrivals',
@@ -71,7 +71,7 @@ class Trip(models.Model):
         app_label = 'transfer_trip'
 
     def __str__(self):
-        return f"{self.departure_time.strftime('%Y-%m-%d %H:%M')}: {self.origin} - {self.destination}"
+        return f"{self.departure_time.strftime('%Y-%m-%d %H:%M')}: {self.from_city} - {self.to_city}"
 
     def clean(self):
         """Универсальная валидация для всех способов сохранения"""
@@ -88,9 +88,9 @@ class Trip(models.Model):
             })
 
         # Добавляем проверку: город отправления должен отличаться от города прибытия
-        if self.origin == self.destination:
+        if self.from_city == self.to_city:
             raise ValidationError({
-                'destination': 'Город назначения должен отличаться от города отправления'
+                'to_city': 'Город назначения должен отличаться от города отправления'
             })
 
         # Проверка пересечения временных интервалов

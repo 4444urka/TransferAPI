@@ -18,9 +18,9 @@ def manage_seats(sender, instance, created, **kwargs):
     # Если создано новое транспортное средство
     if created:
         # Создаем места с нуля
-        Seat.objects.create(vehicle=instance, seat_number=1, seat_type="front")
+        Seat.objects.create(vehicle=instance, seat_number=1, price_zone="front")
         for i in range(instance.total_seats - 1):
-            Seat.objects.create(vehicle=instance, seat_number=i + 2, seat_type="back")
+            Seat.objects.create(vehicle=instance, seat_number=i + 2, price_zone="back")
 
         # Также нужно создать TripSeat для каждой поездки с этим транспортным средством
         trips = Trip.objects.filter(vehicle=instance)
@@ -32,7 +32,7 @@ def manage_seats(sender, instance, created, **kwargs):
         if current_seat_count < instance.total_seats:
             # Нужно добавить места
             for i in range(current_seat_count + 1, instance.total_seats + 1):
-                seat = Seat.objects.create(vehicle=instance, seat_number=i, seat_type="back")
+                seat = Seat.objects.create(vehicle=instance, seat_number=i, price_zone="back")
 
                 # Создать TripSeat для существующих поездок
                 trips = Trip.objects.filter(vehicle=instance)

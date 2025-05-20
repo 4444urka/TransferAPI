@@ -37,7 +37,7 @@ class TripViewSet(viewsets.ModelViewSet):
         filters.OrderingFilter
     ]
     filterset_class = TripFilter
-    search_fields = ['origin__name', 'destination__name']
+    search_fields = ['from_city__name', 'to_city__name']
     permission_classes = [IsAuthenticated, HasTripPermission]
     ordering_fields = ['departure_time', 'arrival_time', 'front_seat_price', 'middle_seat_price', 'back_seat_price']
     ordering = ['departure_time']
@@ -46,9 +46,9 @@ class TripViewSet(viewsets.ModelViewSet):
         operation_description="Получение списка доступных поездок с возможностью фильтрации по множеству параметров",
         operation_summary="Список поездок",
         manual_parameters=[
-            openapi.Parameter('origin', openapi.IN_QUERY, description="ID города отправления",
+            openapi.Parameter('from_city', openapi.IN_QUERY, description="ID города отправления",
                               type=openapi.TYPE_INTEGER),
-            openapi.Parameter('destination', openapi.IN_QUERY, description="ID города назначения",
+            openapi.Parameter('to_city', openapi.IN_QUERY, description="ID города назначения",
                               type=openapi.TYPE_INTEGER),
             openapi.Parameter('date', openapi.IN_QUERY, description="Дата поездки (YYYY-MM-DD)",
                               type=openapi.TYPE_STRING, format=openapi.FORMAT_DATE),
@@ -101,26 +101,26 @@ class TripViewSet(viewsets.ModelViewSet):
         validated_data = serializer.validated_data.copy()
         
         # Обрабатываем данные о городах
-        if 'origin_name' in validated_data:
-            origin_name = validated_data.pop('origin_name')
+        if 'from_city_name' in validated_data:
+            from_city_name = validated_data.pop('from_city_name')
             try:
                 from .services.CityService import CityService
                 city_service = CityService()
-                origin = city_service.get_by_name(origin_name)
-                validated_data['origin'] = origin
+                from_city = city_service.get_by_name(from_city_name)
+                validated_data['from_city'] = from_city
             except Exception as e:
                 return Response(
                     {"error": f"Не удалось найти город отправления: {str(e)}"}, 
                     status=status.HTTP_400_BAD_REQUEST
                 )
                 
-        if 'destination_name' in validated_data:
-            destination_name = validated_data.pop('destination_name')
+        if 'to_city_name' in validated_data:
+            to_city_name = validated_data.pop('to_city_name')
             try:
                 from .services.CityService import CityService
                 city_service = CityService()
-                destination = city_service.get_by_name(destination_name)
-                validated_data['destination'] = destination
+                to_city = city_service.get_by_name(to_city_name)
+                validated_data['to_city'] = to_city
             except Exception as e:
                 return Response(
                     {"error": f"Не удалось найти город назначения: {str(e)}"}, 
@@ -195,8 +195,8 @@ class TripViewSet(viewsets.ModelViewSet):
         """Получение списка городов для фильтрации"""
         cities = trip_service.get_cities()
         return Response({
-            'origin_cities': [{'id': c.id, 'name': c.name} for c in cities],
-            'destination_cities': [{'id': c.id, 'name': c.name} for c in cities]
+            'from_city_cities': [{'id': c.id, 'name': c.name} for c in cities],
+            'to_city_cities': [{'id': c.id, 'name': c.name} for c in cities]
         })
 
     @swagger_auto_schema(

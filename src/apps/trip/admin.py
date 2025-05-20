@@ -15,12 +15,12 @@ class TripAdminForm(forms.ModelForm):
 
 @admin.register(Trip)
 class TripAdmin(admin.ModelAdmin):
-    list_display = ('vehicle', 'origin', 'destination', 'departure_time', 'arrival_time', 'front_seat_price', 'middle_seat_price', 'back_seat_price', 'is_bookable', 'booking_cutoff_minutes')
-    list_filter = ('vehicle', 'origin', 'destination', 'departure_time', 'is_bookable')
-    search_fields = ('vehicle__license_plate', 'origin__name', 'destination__name', 'is_bookable')
+    list_display = ('vehicle', 'from_city', 'to_city', 'departure_time', 'arrival_time', 'front_seat_price', 'middle_seat_price', 'back_seat_price', 'is_bookable', 'booking_cutoff_minutes')
+    list_filter = ('vehicle', 'from_city', 'to_city', 'departure_time', 'is_bookable')
+    search_fields = ('vehicle__license_plate', 'from_city__name', 'to_city__name', 'is_bookable')
     fieldsets = (
         (None, {
-            'fields': ('vehicle', 'origin', 'destination')
+            'fields': ('vehicle', 'from_city', 'to_city')
         }),
         ('Время', {
             'fields': (('departure_time', 'arrival_time'),),

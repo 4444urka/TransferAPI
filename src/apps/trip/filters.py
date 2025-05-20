@@ -25,8 +25,8 @@ class TripFilter(django_filters.FilterSet):
     class Meta:
         model = Trip
         fields = {
-            'origin': ['exact'],
-            'destination': ['exact'],
+            'from_city': ['exact'],
+            'to_city': ['exact'],
             'vehicle__vehicle_type': ['exact'],
             'vehicle__is_comfort': ['exact'],
             'vehicle__air_conditioning': ['exact'],

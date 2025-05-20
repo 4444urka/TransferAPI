@@ -67,9 +67,13 @@ class Booking(models.Model):
         for trip_seat in self.trip_seats.all():
             # Получаем объект Seat через связь в TripSeat
             seat = trip_seat.seat
-            # TODO: Пока что за переднее место надбавка 20%
-            multiplier = Decimal(1.2) if seat.seat_type == "front" else Decimal(1.0)
-            price += round(self.trip.default_ticket_price * multiplier)
+            
+            if seat.price_zone == "front":
+                price += self.trip.front_seat_price 
+            elif seat.price_zone == "middle":
+                price += self.trip.middle_seat_price
+            elif seat.price_zone == "back":
+                price += self.trip.back_seat_price
         return price
 
     def __str__(self):
@@ -80,7 +84,7 @@ class Booking(models.Model):
     class Meta:
         verbose_name = "Бронирование"
         verbose_name_plural = "Бронирования"
-        ordering = ['booking_datetime', 'is_active']
+        ordering = ['-booking_datetime']  # Только сортировка по дате бронирования без фильтрации
 
     def clean(self):
         """Валидация модели бронирования"""
@@ -99,12 +103,12 @@ class Booking(models.Model):
         if self.pickup_location and self.pickup_location.strip():
             # Проверяем, соответствует ли адрес уже нашему формату
             try:
-                refactored_pickup_location = find_address_by_name(self.pickup_location, self.trip.origin.name)
+                refactored_pickup_location = find_address_by_name(self.pickup_location, self.trip.from_city.name)
                 if refactored_pickup_location:
                     self.pickup_location = refactored_pickup_location
                 else:
                     raise ValidationError(
-                        f"Не найдена локация '{self.pickup_location}' в городе {self.trip.origin.name}")
+                        f"Не найдена локация '{self.pickup_location}' в городе {self.trip.from_city.name}")
             except Exception as e:
                 raise ValidationError(f"Ошибка проверки локации получения: {str(e)}")
 
@@ -112,12 +116,12 @@ class Booking(models.Model):
         if self.dropoff_location and self.dropoff_location.strip():
             # Проверяем, соответствует ли адрес уже нашему формату
             try:
-                refactored_dropoff_location = find_address_by_name(self.dropoff_location, self.trip.destination.name)
+                refactored_dropoff_location = find_address_by_name(self.dropoff_location, self.trip.to_city.name)
                 if refactored_dropoff_location:
                     self.dropoff_location = refactored_dropoff_location
                 else:
                     raise ValidationError(
-                        f"Не найдена локация '{self.dropoff_location}' в городе {self.trip.destination.name}")
+                        f"Не найдена локация '{self.dropoff_location}' в городе {self.trip.to_city.name}")
             except Exception as e:
                 raise ValidationError(f"Ошибка проверки локации высадки: {str(e)}")
 

@@ -11,8 +11,8 @@ class CitySerializer(serializers.ModelSerializer):
         fields = ('id', 'name')
 
 class TripDetailSerializer(serializers.ModelSerializer):
-    origin = CitySerializer(read_only=True)
-    destination = CitySerializer(read_only=True)
+    from_city = CitySerializer(read_only=True)
+    to_city = CitySerializer(read_only=True)
     vehicle = VehicleMinSerializer(read_only=True)
     available_seats = serializers.SerializerMethodField()
     duration = serializers.SerializerMethodField()
@@ -20,7 +20,7 @@ class TripDetailSerializer(serializers.ModelSerializer):
     class Meta:
         model = Trip
         fields = (
-            'id', 'origin', 'destination', 'departure_time', 'arrival_time',
+            'id', 'from_city', 'to_city', 'departure_time', 'arrival_time',
             'front_seat_price', 'middle_seat_price', 'back_seat_price',
             'vehicle', 'available_seats', 'duration',
             'booking_cutoff_minutes', 'is_bookable'
@@ -41,29 +41,29 @@ class TripDetailSerializer(serializers.ModelSerializer):
 
 # Сериализатор для создания/редактирования поездок
 class TripCreateUpdateSerializer(serializers.ModelSerializer):
-    origin_name = serializers.CharField(write_only=True, required=True)
-    destination_name = serializers.CharField(write_only=True, required=True)
+    from_city_name = serializers.CharField(write_only=True, required=True)
+    to_city_name = serializers.CharField(write_only=True, required=True)
     city_service = CityService()
     
     class Meta:
         model = Trip
         fields = (
-            'id', 'vehicle', 'origin', 'destination',
+            'id', 'vehicle', 'from_city', 'to_city',
             'departure_time', 'arrival_time',
             'front_seat_price', 'middle_seat_price', 'back_seat_price',
-            'origin_name', 'destination_name', 'booking_cutoff_minutes', 'is_bookable'
+            'from_city_name', 'to_city_name', 'booking_cutoff_minutes', 'is_bookable'
         )
-        read_only_fields = ('origin', 'destination')
+        read_only_fields = ('from_city', 'to_city')
         
     def validate(self, data):
         """
         Проверка на существование городов и валидация данных
         """
-        origin_name = data.get('origin_name')
-        destination_name = data.get('destination_name')
+        from_city_name = data.get('from_city_name')
+        to_city_name = data.get('to_city_name')
         
         # Проверяем что города отправления и назначения не совпадают
-        if origin_name == destination_name:
+        if from_city_name == to_city_name:
             raise serializers.ValidationError("Город отправления и назначения не могут совпадать")
         
         return data
@@ -72,17 +72,17 @@ class TripCreateUpdateSerializer(serializers.ModelSerializer):
         """
         Создание поездки с указанными названиями городов
         """
-        origin_name = validated_data.pop('origin_name')
-        destination_name = validated_data.pop('destination_name')
+        from_city_name = validated_data.pop('from_city_name')
+        to_city_name = validated_data.pop('to_city_name')
         
         try:
-            origin = self.city_service.get_by_name(origin_name)
-            destination = self.city_service.get_by_name(destination_name)
+            from_city = self.city_service.get_by_name(from_city_name)
+            to_city = self.city_service.get_by_name(to_city_name)
         except Exception as e:
             raise serializers.ValidationError(f"Ошибка при получении городов: {e}")
 
-        validated_data['origin'] = origin
-        validated_data['destination'] = destination
+        validated_data['from_city'] = from_city
+        validated_data['to_city'] = to_city
         
         return super().create(validated_data)
         
@@ -90,20 +90,20 @@ class TripCreateUpdateSerializer(serializers.ModelSerializer):
         """
         Обновление поездки с указанными названиями городов
         """
-        if 'origin_name' in validated_data:
-            origin_name = validated_data.pop('origin_name')
+        if 'from_city_name' in validated_data:
+            from_city_name = validated_data.pop('from_city_name')
             try:
-                origin = self.city_service.get_by_name(origin_name)
+                from_city_name = self.city_service.get_by_name(from_city_name)
             except Exception as e:
                 raise serializers.ValidationError(f"Ошибка при получении города отправления: {e}")
-            validated_data['origin'] = origin
+            validated_data['from_city'] = from_city_name
             
-        if 'destination_name' in validated_data:
-            destination_name = validated_data.pop('destination_name')
+        if 'to_city_name' in validated_data:
+            to_city_name = validated_data.pop('to_city_name')
             try:
-                destination = self.city_service.get_by_name(destination_name)
+                to_city = self.city_service.get_by_name(to_city_name)
             except Exception as e:
                 raise serializers.ValidationError(f"Ошибка при получении города назначения: {e}")
-            validated_data['destination'] = destination
+            validated_data['to_city'] = to_city
             
         return super().update(instance, validated_data)

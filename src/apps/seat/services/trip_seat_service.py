@@ -16,11 +16,11 @@ class TripSeatService:
             vehicle_seats = Seat.objects.filter(vehicle=trip.vehicle)
             for seat in vehicle_seats:
                 cost = 0
-                if seat.seat_type == 'front':
+                if seat.price_zone == 'front':
                     cost = trip.front_seat_price
-                elif seat.seat_type == 'middle':
+                elif seat.price_zone == 'middle':
                     cost = trip.middle_seat_price
-                elif seat.seat_type == 'back':
+                elif seat.price_zone == 'back':
                     cost = trip.back_seat_price
                 
                 TripSeat.objects.create(trip=trip, seat=seat, cost=cost)
@@ -38,7 +38,7 @@ class TripSeatService:
             seats_list = [{
                 'id': trip_seat.seat.id,
                 'number': trip_seat.seat.seat_number,
-                'type': trip_seat.seat.seat_type,
+                'type': trip_seat.seat.price_zone,
                 'is_booked': trip_seat.is_booked
             } for trip_seat in trip_seats]
             self.logger.info(f"Seats list successfully retrieved for Trip id: {trip.id}")

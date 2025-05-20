@@ -22,34 +22,34 @@ class SeatModelTest(TestCase):
     def setUp(self):
         # Создаем транспортное средство
         self.vehicle = Vehicle.objects.create(
-            vehicle_type='bus',
-            license_plate='А123АА',
-            total_seats=40,
+            vehicle_type='car', 
+            license_plate='А123АА', 
+            total_seats=5,
             is_comfort=True,
             air_conditioning=True
         )
-
-        # Получаем места, созданные сигналом manage_seats
+        
+        # Получаем созданные при создании транспортного средства места
         self.seats = Seat.objects.filter(vehicle=self.vehicle)
-
+    
     def test_seat_creation_by_signal(self):
         """Тест автоматического создания мест при создании транспортного средства"""
         # Проверяем, что создано правильное количество мест
         self.assertEqual(self.seats.count(), self.vehicle.total_seats)
-
+        
         # Проверяем, что первое место имеет тип "front"
         first_seat = self.seats.order_by('seat_number').first()
-        self.assertEqual(first_seat.seat_type, "front")
+        self.assertEqual(first_seat.price_zone, "front")
 
         # Проверяем, что остальные места имеют тип "back"
         back_seats = self.seats.filter(seat_number__gt=1)
         for seat in back_seats:
-            self.assertEqual(seat.seat_type, "back")
+            self.assertEqual(seat.price_zone, "back")
 
     def test_seat_str_representation(self):
         """Тест строкового представления места"""
         seat = self.seats.first()
-        expected_str = f"{self.vehicle} - Место {seat.seat_number} ({seat.get_seat_type_display()})"
+        expected_str = f"{self.vehicle} - Место {seat.seat_number} ({seat.get_price_zone_display()})"
         self.assertEqual(str(seat), expected_str)
 
     def test_seat_unique_constraint(self):
@@ -61,18 +61,18 @@ class SeatModelTest(TestCase):
             Seat.objects.create(
                 vehicle=self.vehicle,
                 seat_number=existing_seat.seat_number,
-                seat_type="back"
+                price_zone="back"
             )
 
     def test_seat_number_validation(self):
         """Тест валидации номера места"""
         # Попытка создать место с отрицательным номером
-        seat = Seat(vehicle=self.vehicle, seat_number=-1, seat_type="back")
+        seat = Seat(vehicle=self.vehicle, seat_number=-1, price_zone="back")
         with self.assertRaises(ValidationError):
             seat.full_clean()
 
         # Попытка создать место с номером больше, чем общее количество мест
-        seat = Seat(vehicle=self.vehicle, seat_number=self.vehicle.total_seats + 1, seat_type="back")
+        seat = Seat(vehicle=self.vehicle, seat_number=self.vehicle.total_seats + 1, price_zone="back")
         with self.assertRaises(ValidationError):
             seat.full_clean()
 
@@ -111,8 +111,8 @@ class TripSeatModelTest(TestCase):
 
     def setUp(self):
         # Создаем города
-        self.origin = City.objects.create(name='Москва')
-        self.destination = City.objects.create(name='Санкт-Петербург')
+        self.from_city = City.objects.create(name='Москва')
+        self.to_city = City.objects.create(name='Санкт-Петербург')
 
         # Создаем транспортное средство
         self.vehicle = Vehicle.objects.create(
@@ -124,8 +124,8 @@ class TripSeatModelTest(TestCase):
         # Создаем поездку
         self.trip = Trip.objects.create(
             vehicle=self.vehicle,
-            origin=self.origin,
-            destination=self.destination,
+            from_city=self.from_city,
+            to_city=self.to_city,
             departure_time=timezone.now() + timedelta(days=1),
             arrival_time=timezone.now() + timedelta(days=1, hours=5),
             front_seat_price=Decimal('1000.00'),
@@ -181,8 +181,8 @@ class TripSeatModelTest(TestCase):
         # Создаем вторую поездку
         trip2 = Trip.objects.create(
             vehicle=self.vehicle,
-            origin=self.origin,
-            destination=self.destination,
+            from_city=self.from_city,
+            to_city=self.to_city,
             departure_time=timezone.now() + timedelta(days=2),
             arrival_time=timezone.now() + timedelta(days=2, hours=5),
             front_seat_price=Decimal('1000.00'),
@@ -237,8 +237,8 @@ class SeatAPITest(APITestCase):
         # Создаем поездки
         self.trip = Trip.objects.create(
             vehicle=self.vehicle,
-            origin=City.objects.create(name='Москва'),
-            destination=City.objects.create(name='Санкт-Петербург'),
+            from_city=City.objects.create(name='Москва'),
+            to_city=City.objects.create(name='Санкт-Петербург'),
             departure_time=timezone.now() + timedelta(days=1),
             arrival_time=timezone.now() + timedelta(days=1, hours=5),
             front_seat_price=Decimal('1000.00'),
@@ -276,9 +276,9 @@ class SeatAPITest(APITestCase):
         response = self.client.get(self.seat_detail_url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data['id'], self.seat1.id)
-        self.assertEqual(response.data['vehicle'], self.vehicle.id)
+        self.assertEqual(response.data['vehicle']['id'], self.vehicle.id)
         self.assertEqual(response.data['seat_number'], self.seat1.seat_number)
-        self.assertEqual(response.data['seat_type'], self.seat1.seat_type)
+        self.assertEqual(response.data['price_zone'], self.seat1.price_zone)
 
     def test_create_seat_forbidden(self):
         """Тест запрета создания мест через API"""
@@ -287,7 +287,7 @@ class SeatAPITest(APITestCase):
         data = {
             "vehicle": self.vehicle.id,
             "seat_number": 100,
-            "seat_type": "back"
+            "price_zone": "back"
         }
 
         response = self.client.post(self.seat_list_url, data)
@@ -304,20 +304,20 @@ class SeatAPITest(APITestCase):
         self.client.force_authenticate(user=self.admin_user)
 
         # Меняем тип места с "back" на "middle"
-        data = {"seat_type": "middle"}
+        data = {"price_zone": "middle"}
         response = self.client.patch(self.seat_detail_url, data)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
         # Проверяем, что тип места действительно изменился
         self.seat1.refresh_from_db()
-        self.assertEqual(self.seat1.seat_type, "middle")
+        self.assertEqual(self.seat1.price_zone, "middle")
 
     def test_update_seat_as_regular_user(self):
         """Тест обновления типа места обычным пользователем (без права доступа)"""
         self.client.force_authenticate(user=self.regular_user)
 
         # Обычный пользователь не должен иметь прав на изменение мест
-        data = {"seat_type": "middle"}
+        data = {"price_zone": "middle"}
         response = self.client.patch(self.seat_detail_url, data)
         # Проверка на отказ зависит от настроек разрешений в SeatViewSet
         self.assertIn(response.status_code, [status.HTTP_403_FORBIDDEN, status.HTTP_401_UNAUTHORIZED])
@@ -331,7 +331,7 @@ class SeatAPITest(APITestCase):
         self.assertEqual(len(response.data), self.seats.count())
 
         # Проверяем, что все места относятся к правильному транспортному средству
-        vehicle_ids = set(seat['vehicle'] for seat in response.data)
+        vehicle_ids = set(seat['vehicle']['id'] for seat in response.data)
         self.assertEqual(len(vehicle_ids), 1)
         self.assertEqual(list(vehicle_ids)[0], self.vehicle.id)
 
@@ -362,8 +362,8 @@ class TripSeatBookingTest(APITestCase):
         # Создаем поездки
         self.trip1 = Trip.objects.create(
             vehicle=self.vehicle,
-            origin=City.objects.create(name='Москва'),
-            destination=City.objects.create(name='Санкт-Петербург'),
+            from_city=City.objects.create(name='Москва'),
+            to_city=City.objects.create(name='Санкт-Петербург'),
             departure_time=timezone.now() + timedelta(days=1),
             arrival_time=timezone.now() + timedelta(days=1, hours=5),
             front_seat_price=Decimal('1000.00'),
@@ -373,8 +373,8 @@ class TripSeatBookingTest(APITestCase):
 
         self.trip2 = Trip.objects.create(
             vehicle=self.vehicle,
-            origin=City.objects.get(name='Москва'),
-            destination=City.objects.get(name='Санкт-Петербург'),
+            from_city=City.objects.get(name='Москва'),
+            to_city=City.objects.get(name='Санкт-Петербург'),
             departure_time=timezone.now() + timedelta(days=2),
             arrival_time=timezone.now() + timedelta(days=2, hours=5),
             front_seat_price=Decimal('1000.00'),
@@ -458,18 +458,18 @@ class SeatTypeConstraintTest(TestCase):
         """Проверка, что первое место имеет тип 'front'"""
         first_seat = self.seats[0]
         self.assertEqual(first_seat.seat_number, 1)
-        self.assertEqual(first_seat.seat_type, 'front')
+        self.assertEqual(first_seat.price_zone, 'front')
 
-    def test_change_seat_type(self):
+    def test_change_price_zone(self):
         """Тест изменения типа места"""
         seat = self.seats[1]
-        self.assertEqual(seat.seat_type, 'back')  # Изначально
+        self.assertEqual(seat.price_zone, 'back')  # Изначально
 
         # Меняем тип на middle
-        seat.seat_type = 'middle'
+        seat.price_zone = 'middle'
         seat.save()
         seat.refresh_from_db()
-        self.assertEqual(seat.seat_type, 'middle')
+        self.assertEqual(seat.price_zone, 'middle')
 
 
 class SeatPermissionTest(APITestCase):
@@ -516,13 +516,13 @@ class SeatPermissionTest(APITestCase):
         self.seat2 = self.seats.order_by('seat_number')[1]
 
         # Создаем поездку для тестирования TripSeat
-        self.origin = City.objects.create(name='Москва')
-        self.destination = City.objects.create(name='Санкт-Петербург')
+        self.from_city = City.objects.create(name='Москва')
+        self.to_city = City.objects.create(name='Санкт-Петербург')
 
         self.trip = Trip.objects.create(
             vehicle=self.vehicle,
-            origin=self.origin,
-            destination=self.destination,
+            from_city=self.from_city,
+            to_city=self.to_city,
             departure_time=timezone.now() + timedelta(days=1),
             arrival_time=timezone.now() + timedelta(days=1, hours=5),
             front_seat_price=Decimal('1000.00'),
@@ -571,7 +571,7 @@ class SeatPermissionTest(APITestCase):
         data = {
             "vehicle": self.vehicle.id,
             "seat_number": 100,
-            "seat_type": "back"
+            "price_zone": "back"
         }
 
         response = self.client.post(self.seat_list_url, data)
@@ -582,7 +582,7 @@ class SeatPermissionTest(APITestCase):
         self.client.force_authenticate(user=self.regular_user)
 
         data = {
-            "seat_type": "middle"
+            "price_zone": "middle"
         }
 
         response = self.client.patch(self.seat1_detail_url, data)
@@ -590,14 +590,14 @@ class SeatPermissionTest(APITestCase):
 
         # Проверяем, что место не изменилось
         self.seat1.refresh_from_db()
-        self.assertNotEqual(self.seat1.seat_type, "middle")
+        self.assertNotEqual(self.seat1.price_zone, "middle")
 
     def test_update_seat_as_manager(self):
         """Тест обновления места менеджером с правом обновления"""
         self.client.force_authenticate(user=self.manager_user)
 
         data = {
-            "seat_type": "middle"
+            "price_zone": "middle"
         }
 
         response = self.client.patch(self.seat1_detail_url, data)
@@ -605,14 +605,14 @@ class SeatPermissionTest(APITestCase):
 
         # Проверяем, что тип места действительно изменился
         self.seat1.refresh_from_db()
-        self.assertEqual(self.seat1.seat_type, "middle")
+        self.assertEqual(self.seat1.price_zone, "middle")
 
     def test_update_seat_as_admin(self):
         """Тест обновления места администратором"""
         self.client.force_authenticate(user=self.admin_user)
 
         data = {
-            "seat_type": "middle"
+            "price_zone": "middle"
         }
 
         response = self.client.patch(self.seat1_detail_url, data)
@@ -620,7 +620,7 @@ class SeatPermissionTest(APITestCase):
 
         # Проверяем, что тип места действительно изменился
         self.seat1.refresh_from_db()
-        self.assertEqual(self.seat1.seat_type, "middle")
+        self.assertEqual(self.seat1.price_zone, "middle")
 
     def test_delete_seat_as_admin(self):
         """Тест запрета удаления места через API (даже для администратора)"""
@@ -639,11 +639,11 @@ class SeatPermissionTest(APITestCase):
     def test_get_seats_by_vehicle_as_authenticated(self):
         """Тест доступа к списку мест для конкретного ТС для аутентифицированного пользователя"""
         self.client.force_authenticate(user=self.regular_user)
-        response = self.client.get(self.seats_by_vehicle_url)
+        response = self.client.get(reverse('seat-get-seats-by-vehicle', args=[self.vehicle.id]))
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-
+        
         # Проверяем, что все места относятся к правильному транспортному средству
-        vehicle_ids = set(seat['vehicle'] for seat in response.data)
+        vehicle_ids = set(seat['vehicle']['id'] for seat in response.data)
         self.assertEqual(len(vehicle_ids), 1)
         self.assertEqual(list(vehicle_ids)[0], self.vehicle.id)
 
@@ -654,7 +654,7 @@ class SeatPermissionTest(APITestCase):
         self.client.force_authenticate(user=test_user)
 
         data = {
-            "seat_type": "middle"
+            "price_zone": "middle"
         }
 
         response = self.client.patch(self.seat1_detail_url, data)
@@ -672,7 +672,7 @@ class SeatPermissionTest(APITestCase):
 
         # Снова должен быть запрещен доступ
         data = {
-            "seat_type": "back"
+            "price_zone": "back"
         }
         response = self.client.patch(self.seat1_detail_url, data)
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)

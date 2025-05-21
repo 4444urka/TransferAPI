@@ -50,6 +50,7 @@ INSTALLED_APPS = [
     'apps.seat.apps.SeatConfig',
     'apps.payment.apps.PaymentConfig',
     'apps.monitoring',
+    'apps.utils',
 
     # Библиотеки
     'rest_framework',

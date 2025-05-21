@@ -42,17 +42,9 @@ class Command(BaseCommand):
         vehicles = self.create_vehicles(vehicle_count)
         self.stdout.write(self.style.SUCCESS(f'Создано {len(vehicles)} транспортных средств'))
         
-        # Создаем места для каждого транспорта
-        seats = self.create_seats(vehicles)
-        self.stdout.write(self.style.SUCCESS(f'Создано места для всех транспортных средств'))
-        
         # Создаем поездки
         trips = self.create_trips(trip_count, cities, vehicles)
         self.stdout.write(self.style.SUCCESS(f'Создано {len(trips)} поездок'))
-        
-        # Создаем TripSeat для каждой поездки
-        trip_seats = self.create_trip_seats(trips)
-        self.stdout.write(self.style.SUCCESS(f'Созданы места для всех поездок'))
         
         # Создаем пользователей
         users = self.create_users(user_count)
@@ -110,7 +102,7 @@ class Command(BaseCommand):
             numbers = f"{random.randint(100, 999)}"
             letters_part2 = ''.join(random.choices(letters, k=2))
             region = random.randint(1, 199)
-            license_plate = f"{letters_part1}{numbers}{letters_part2}{region}"
+            license_plate = f"{letters_part1}{numbers}{letters_part2} {region}"
             
             vehicle_type = random.choice(vehicle_types)
             total_seats = 0
@@ -149,36 +141,6 @@ class Command(BaseCommand):
                 self.stdout.write(self.style.WARNING(f'Не удалось создать транспорт: {str(e)}'))
         
         return vehicles
-
-    def create_seats(self, vehicles):
-        seats = []
-        for vehicle in vehicles:
-            # Удаляем существующие места для транспорта (если есть)
-            Seat.objects.filter(vehicle=vehicle).delete()
-            
-            # Создаем новые места
-            for seat_num in range(1, vehicle.total_seats + 1):
-                price_zone = "front"
-                if seat_num == 1:
-                    price_zone = "front"
-                elif seat_num <= vehicle.total_seats // 3 + 1:
-                    price_zone = "front"
-                elif seat_num <= 2 * (vehicle.total_seats // 3) + 1:
-                    price_zone = "middle"
-                else:
-                    price_zone = "back"
-                
-                try:
-                    seat = Seat.objects.create(
-                        vehicle=vehicle,
-                        seat_number=seat_num,
-                        price_zone=price_zone
-                    )
-                    seats.append(seat)
-                except Exception as e:
-                    self.stdout.write(self.style.WARNING(f'Не удалось создать место {seat_num} для {vehicle}: {str(e)}'))
-        
-        return seats
 
     def create_trips(self, count, cities, vehicles):
         trips = []
@@ -229,38 +191,6 @@ class Command(BaseCommand):
         
         return trips
 
-    def create_trip_seats(self, trips):
-        trip_seats = []
-        
-        for trip in trips:
-            vehicle = trip.vehicle
-            seats = Seat.objects.filter(vehicle=vehicle)
-            
-            for seat in seats:
-                # Определяем цену в зависимости от зоны места
-                if seat.price_zone == "front":
-                    cost = trip.front_seat_price
-                elif seat.price_zone == "middle":
-                    cost = trip.middle_seat_price
-                else:  # back
-                    cost = trip.back_seat_price
-                
-                trip_seat = TripSeat(
-                    trip=trip,
-                    seat=seat,
-                    cost=cost,
-                    is_booked=False  # По умолчанию места не забронированы
-                )
-                
-                try:
-                    trip_seat.save()
-                    trip_seats.append(trip_seat)
-                except Exception as e:
-                    self.stdout.write(self.style.WARNING(
-                        f'Не удалось создать место для поездки {trip} - {seat}: {str(e)}'))
-        
-        return trip_seats
-
     def create_users(self, count):
         users = []
         first_names = ['Александр', 'Иван', 'Дмитрий', 'Михаил', 'Сергей', 'Андрей', 'Николай', 
@@ -284,8 +214,6 @@ class Command(BaseCommand):
                 phone_number=phone_number,
                 first_name=first_name,
                 last_name=last_name,
-                is_active=True,
-                chat_id=str(random.randint(10000000, 99999999))
             )
             
             try:
@@ -338,16 +266,7 @@ class Command(BaseCommand):
                         trip_seat.is_booked = True
                         trip_seat.save()
                         booking.trip_seats.add(trip_seat)
-                    
-                    # Создаем оплату
-                    payment = Payment.objects.create(
-                        amount=booking.total_price,
-                        status='completed',
-                        payment_method=random.choice(['card', 'cash']),
-                        payment_date=timezone.now() - timedelta(days=random.randint(0, 5))
-                    )
-                    
-                    booking.payment = payment
+                
                     booking.save()
                     
                     bookings.append(booking)

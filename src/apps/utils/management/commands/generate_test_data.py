@@ -155,7 +155,7 @@ class Command(BaseCommand):
             
             # Генерируем случайные даты в будущем (от 1 до 30 дней)
             now = timezone.now()
-            departure_days = random.randint(1, 30)
+            departure_days = random.randint(-30, 30)
             departure_time = now + timedelta(days=departure_days, hours=random.randint(0, 23))
             
             # Длительность поездки от 1 до 12 часов
@@ -167,8 +167,9 @@ class Command(BaseCommand):
             middle_seat_price = Decimal(random.randint(400, 1800))
             back_seat_price = Decimal(random.randint(300, 1500))
             
-            # Доступность для бронирования
-            is_bookable = random.random() < 0.9
+            # Доступность для бронирования (Если поездка в прошлом, то не доступна для бронирования)
+            is_bookable = random.random() < 0.9 if departure_time > timezone.now() else False
+            is_active = random.random() < 0.9 if departure_time > timezone.now() else False
             
             trip = Trip(
                 vehicle=vehicle,
@@ -180,7 +181,7 @@ class Command(BaseCommand):
                 middle_seat_price=middle_seat_price,
                 back_seat_price=back_seat_price,
                 is_bookable=is_bookable,
-                is_active=True,
+                is_active=is_active,
                 booking_cutoff_minutes=random.choice([15, 30, 45, 60])
             )
             

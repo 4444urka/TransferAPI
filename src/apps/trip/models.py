@@ -75,12 +75,12 @@ class Trip(models.Model):
 
     def clean(self):
         """Универсальная валидация для всех способов сохранения"""
-        # Проверка времени отправления
-        if self.departure_time < timezone.now():
-            raise ValidationError({
-                'departure_time': 'Нельзя создавать поездки с прошедшей датой отправления'
-            })
 
+        if self.departure_time < timezone.now() and (self.is_active == True or self.is_bookable == True):
+            raise ValidationError({
+                'departure_time': 'Прошедшие поездки не могут быть активными или доступными для бронирования'
+            })
+        
         # Проверка времени прибытия
         if self.arrival_time <= self.departure_time:
             raise ValidationError({
@@ -121,10 +121,14 @@ class Trip(models.Model):
         
         # Проверка времени до отправления
         time_until_departure = (self.departure_time - timezone.now()).total_seconds() / 60
-        if self.booking_cutoff_minutes > time_until_departure:
+        
+        # Проверка на то, что время до отправления не может быть меньше времени до отправления и время прибытия не может быть в прошлом
+        if self.booking_cutoff_minutes > time_until_departure and self.arrival_time > timezone.now():
             raise ValidationError({
                 'booking_cutoff_minutes': 'Время не может быть больше оставшегося времени до отправления'
             })
+            
+        
 
     def save(self, *args, **kwargs):
         self.full_clean()

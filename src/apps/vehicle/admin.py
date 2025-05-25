@@ -41,7 +41,7 @@ class VehicleAdminForm(forms.ModelForm):
 
 class VehicleAdmin(admin.ModelAdmin):
     form = VehicleAdminForm
-    list_display = ('vehicle_type', 'license_plate', 'total_seats', 'is_comfort', 'air_conditioning', 'allows_pets')
+    list_display = ('id', 'vehicle_type', 'license_plate', 'total_seats', 'is_comfort', 'air_conditioning', 'allows_pets')
     list_filter = ('vehicle_type', 'is_comfort', 'air_conditioning', 'allows_pets')
     search_fields = ('license_plate',)
     fieldsets = (

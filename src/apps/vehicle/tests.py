@@ -93,6 +93,10 @@ class VehicleModelTest(TestCase):
             air_conditioning=True,
             allows_pets=False
         )
+        
+        # Создаем города для тестов с поездками
+        self.moscow = City.objects.create(name='Москва')
+        self.spb = City.objects.create(name='Санкт-Петербург')
 
     def test_vehicle_str_representation(self):
         """Тест строкового представления транспорта"""
@@ -209,13 +213,16 @@ class VehicleModelTest(TestCase):
 
     def test_cannot_delete_booked_seats(self):
         """Тест запрета удаления мест, которые забронированы"""
-        # Создаем поездку
-        from_city = City.objects.create(name='Москва')
-        to_city = City.objects.create(name='Санкт-Петербург')
+        # Создаем водителя и добавляем его в группу Водитель
+        driver = User.objects.create_user('+79111111115', 'driverpass')
+        driver_group, _ = Group.objects.get_or_create(name='Водитель')
+        driver.groups.add(driver_group)
+        
         trip = Trip.objects.create(
             vehicle=self.bus,
-            from_city=from_city,
-            to_city=to_city,
+            driver=driver,
+            from_city=self.moscow,
+            to_city=self.spb,
             departure_time=timezone.now() + timedelta(days=1),
             arrival_time=timezone.now() + timedelta(days=1, hours=5),
             front_seat_price=Decimal('1000.00'),
@@ -251,15 +258,18 @@ class VehicleModelTest(TestCase):
 
     def test_vehicle_with_trip_seats(self):
         """Тест создания TripSeats при создании поездки для транспорта"""
-        # Создаем поездку
-        from_city = City.objects.create(name='Москва')
-        to_city = City.objects.create(name='Санкт-Петербург')
+        # Создаем водителя и добавляем его в группу Водитель
+        driver = User.objects.create_user('+79111111116', 'driverpass')
+        driver_group, _ = Group.objects.get_or_create(name='Водитель')
+        driver.groups.add(driver_group)
+        
         trip = Trip.objects.create(
             vehicle=self.car,
-            from_city=from_city,
-            to_city=to_city,
+            driver=driver,
+            from_city=self.moscow,
+            to_city=self.spb,
             departure_time=timezone.now() + timedelta(days=1),
-            arrival_time=timezone.now() + timedelta(days=1, hours=2),
+            arrival_time=timezone.now() + timedelta(days=1, hours=3),
             front_seat_price=Decimal('500.00'),
             middle_seat_price=Decimal('500.00'),
             back_seat_price=Decimal('500.00')
@@ -536,10 +546,15 @@ class VehicleAPITest(APITestCase):
 
     def test_vehicle_availability_checker(self):
         """Тест проверки доступности транспортного средства"""
-        self.client.force_authenticate(user=self.regular_user)
+        self.client.force_authenticate(user=self.admin_user)
 
         from_city = City.objects.create(name='Москва')
         to_city = City.objects.create(name='Санкт-Петербург')
+
+        # Создаем водителя и добавляем его в группу Водитель
+        driver = User.objects.create_user('+79111111115', 'driverpass')
+        driver_group, _ = Group.objects.get_or_create(name='Водитель')
+        driver.groups.add(driver_group)
 
         now = timezone.now()
         trip_start = now + timedelta(days=1)
@@ -547,6 +562,7 @@ class VehicleAPITest(APITestCase):
 
         Trip.objects.create(
             vehicle=self.vehicle1,
+            driver=driver,  # Добавляем водителя
             from_city=from_city,
             to_city=to_city,
             departure_time=trip_start,

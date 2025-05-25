@@ -121,9 +121,15 @@ class TripSeatModelTest(TestCase):
             total_seats=40
         )
 
+        # Создаем водителя и добавляем его в группу Водитель
+        self.driver = User.objects.create_user('+79111111113', 'driverpass')
+        driver_group, _ = Group.objects.get_or_create(name='Водитель')
+        self.driver.groups.add(driver_group)
+
         # Создаем поездку
         self.trip = Trip.objects.create(
             vehicle=self.vehicle,
+            driver=self.driver,
             from_city=self.from_city,
             to_city=self.to_city,
             departure_time=timezone.now() + timedelta(days=1),
@@ -181,6 +187,7 @@ class TripSeatModelTest(TestCase):
         # Создаем вторую поездку
         trip2 = Trip.objects.create(
             vehicle=self.vehicle,
+            driver=self.driver,
             from_city=self.from_city,
             to_city=self.to_city,
             departure_time=timezone.now() + timedelta(days=2),
@@ -221,6 +228,11 @@ class SeatAPITest(APITestCase):
         # Создаем пользователей
         self.admin_user = User.objects.create_superuser('+79111111111', 'adminpass')
         self.regular_user = User.objects.create_user('+79111111112', 'userpass')
+        
+        # Создаем водителя и добавляем его в группу Водитель
+        self.driver = User.objects.create_user('+79111111113', 'driverpass')
+        driver_group, _ = Group.objects.get_or_create(name='Водитель')
+        self.driver.groups.add(driver_group)
 
         # Создаем транспортное средство с местами
         self.vehicle = Vehicle.objects.create(
@@ -237,6 +249,7 @@ class SeatAPITest(APITestCase):
         # Создаем поездки
         self.trip = Trip.objects.create(
             vehicle=self.vehicle,
+            driver=self.driver,
             from_city=City.objects.create(name='Москва'),
             to_city=City.objects.create(name='Санкт-Петербург'),
             departure_time=timezone.now() + timedelta(days=1),
@@ -348,6 +361,11 @@ class TripSeatBookingTest(APITestCase):
     def setUp(self):
         # Создаем пользователей
         self.user = User.objects.create_user('+79111111112', 'userpass')
+        
+        # Создаем водителя и добавляем его в группу Водитель
+        self.driver = User.objects.create_user('+79111111113', 'driverpass')
+        driver_group, _ = Group.objects.get_or_create(name='Водитель')
+        self.driver.groups.add(driver_group)
 
         # Создаем транспортное средство с местами
         self.vehicle = Vehicle.objects.create(
@@ -362,6 +380,7 @@ class TripSeatBookingTest(APITestCase):
         # Создаем поездки
         self.trip1 = Trip.objects.create(
             vehicle=self.vehicle,
+            driver=self.driver,
             from_city=City.objects.create(name='Москва'),
             to_city=City.objects.create(name='Санкт-Петербург'),
             departure_time=timezone.now() + timedelta(days=1),
@@ -373,6 +392,7 @@ class TripSeatBookingTest(APITestCase):
 
         self.trip2 = Trip.objects.create(
             vehicle=self.vehicle,
+            driver=self.driver,
             from_city=City.objects.get(name='Москва'),
             to_city=City.objects.get(name='Санкт-Петербург'),
             departure_time=timezone.now() + timedelta(days=2),
@@ -481,6 +501,11 @@ class SeatPermissionTest(APITestCase):
         self.admin_user = User.objects.create_superuser('+79111111111', 'adminpass')
         self.manager_user = User.objects.create_user('+79222222222', 'managerpass')
         self.regular_user = User.objects.create_user('+79333333333', 'userpass')
+        
+        # Создаем водителя и добавляем его в группу Водитель
+        self.driver = User.objects.create_user('+79111111114', 'driverpass')
+        driver_group, _ = Group.objects.get_or_create(name='Водитель')
+        self.driver.groups.add(driver_group)
 
         # Создаем группу менеджеров с правами на операции с местами
         self.manager_group, _ = Group.objects.get_or_create(name='Менеджеры мест')
@@ -521,6 +546,7 @@ class SeatPermissionTest(APITestCase):
 
         self.trip = Trip.objects.create(
             vehicle=self.vehicle,
+            driver=self.driver,
             from_city=self.from_city,
             to_city=self.to_city,
             departure_time=timezone.now() + timedelta(days=1),

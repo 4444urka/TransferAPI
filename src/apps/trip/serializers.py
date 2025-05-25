@@ -1,6 +1,8 @@
 from rest_framework import serializers
 from apps.trip.models import Trip, City
 from apps.vehicle.serializers import VehicleMinSerializer
+from apps.auth.serializers import UserSerializer
+from apps.auth.models import User
 from .services.CityService import CityService
 from .services.TripService import TripService
 
@@ -14,6 +16,7 @@ class TripDetailSerializer(serializers.ModelSerializer):
     from_city = CitySerializer(read_only=True)
     to_city = CitySerializer(read_only=True)
     vehicle = VehicleMinSerializer(read_only=True)
+    driver = UserSerializer(read_only=True)
     available_seats = serializers.SerializerMethodField()
     duration = serializers.SerializerMethodField()
 
@@ -22,7 +25,7 @@ class TripDetailSerializer(serializers.ModelSerializer):
         fields = (
             'id', 'from_city', 'to_city', 'departure_time', 'arrival_time',
             'front_seat_price', 'middle_seat_price', 'back_seat_price',
-            'vehicle', 'available_seats', 'duration',
+            'vehicle', 'driver', 'available_seats', 'duration',
             'booking_cutoff_minutes', 'is_bookable'
         )
 
@@ -43,12 +46,13 @@ class TripDetailSerializer(serializers.ModelSerializer):
 class TripCreateUpdateSerializer(serializers.ModelSerializer):
     from_city_name = serializers.CharField(write_only=True, required=True)
     to_city_name = serializers.CharField(write_only=True, required=True)
+    driver = serializers.PrimaryKeyRelatedField(queryset=User.objects.filter(groups__name='Водитель'), write_only=True, required=True)
     city_service = CityService()
     
     class Meta:
         model = Trip
         fields = (
-            'id', 'vehicle', 'from_city', 'to_city',
+            'id', 'vehicle', 'driver', 'from_city', 'to_city',
             'departure_time', 'arrival_time',
             'front_seat_price', 'middle_seat_price', 'back_seat_price',
             'from_city_name', 'to_city_name', 'booking_cutoff_minutes', 'is_bookable'

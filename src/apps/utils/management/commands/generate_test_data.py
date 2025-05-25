@@ -5,6 +5,7 @@ from django.core.management.base import BaseCommand
 from django.utils import timezone
 from django.db import transaction
 from phonenumber_field.phonenumber import PhoneNumber
+from django.contrib.auth.models import Group
 from apps.auth.models import User
 from apps.trip.models import City, Trip
 from apps.vehicle.models import Vehicle
@@ -20,6 +21,7 @@ class Command(BaseCommand):
         parser.add_argument('--vehicles', type=int, default=10, help='Количество транспортных средств')
         parser.add_argument('--trips', type=int, default=20, help='Количество поездок')
         parser.add_argument('--users', type=int, default=15, help='Количество пользователей')
+        parser.add_argument('--drivers', type=int, default=5, help='Количество водителей')
         parser.add_argument('--bookings', type=int, default=30, help='Количество бронирований')
         parser.add_argument('--clean', action='store_true', help='Очистить существующие данные')
 
@@ -32,7 +34,13 @@ class Command(BaseCommand):
         vehicle_count = options['vehicles']
         trip_count = options['trips']
         user_count = options['users']
+        driver_count = options['drivers']
         booking_count = options['bookings']
+        
+        # Создаем группу водителей, если её еще нет
+        driver_group, created = Group.objects.get_or_create(name='Водитель')
+        if created:
+            self.stdout.write(self.style.SUCCESS('Создана группа водителей "Водитель"'))
         
         # Создаем города
         cities = self.create_cities(city_count)
@@ -42,13 +50,17 @@ class Command(BaseCommand):
         vehicles = self.create_vehicles(vehicle_count)
         self.stdout.write(self.style.SUCCESS(f'Создано {len(vehicles)} транспортных средств'))
         
-        # Создаем поездки
-        trips = self.create_trips(trip_count, cities, vehicles)
-        self.stdout.write(self.style.SUCCESS(f'Создано {len(trips)} поездок'))
-        
-        # Создаем пользователей
+        # Создаем обычных пользователей
         users = self.create_users(user_count)
         self.stdout.write(self.style.SUCCESS(f'Создано {len(users)} пользователей'))
+        
+        # Создаем водителей
+        drivers = self.create_drivers(driver_count, driver_group)
+        self.stdout.write(self.style.SUCCESS(f'Создано {len(drivers)} водителей'))
+        
+        # Создаем поездки с водителями
+        trips = self.create_trips(trip_count, cities, vehicles, drivers)
+        self.stdout.write(self.style.SUCCESS(f'Создано {len(trips)} поездок'))
         
         # Создаем бронирования
         bookings = self.create_bookings(booking_count, users, trips)
@@ -143,56 +155,6 @@ class Command(BaseCommand):
         
         return vehicles
 
-    def create_trips(self, count, cities, vehicles):
-        trips = []
-        
-        for i in range(count):
-            # Выбираем случайные города отправления и прибытия
-            from_city, to_city = random.sample(cities, 2)
-            
-            # Выбираем случайное транспортное средство
-            vehicle = random.choice(vehicles)
-            
-            # Генерируем случайные даты в будущем (от 1 до 30 дней)
-            now = timezone.now()
-            departure_days = random.randint(-30, 30)
-            departure_time = now + timedelta(days=departure_days, hours=random.randint(0, 23))
-            
-            # Длительность поездки от 1 до 12 часов
-            trip_duration = timedelta(hours=random.randint(1, 12))
-            arrival_time = departure_time + trip_duration
-            
-            # Генерируем случайные цены
-            front_seat_price = Decimal(random.randint(500, 2000))
-            middle_seat_price = Decimal(random.randint(400, 1800))
-            back_seat_price = Decimal(random.randint(300, 1500))
-            
-            # Доступность для бронирования (Если поездка в прошлом, то не доступна для бронирования)
-            is_bookable = random.random() < 0.9 if departure_time > timezone.now() else False
-            is_active = random.random() < 0.9 if departure_time > timezone.now() else False
-            
-            trip = Trip(
-                vehicle=vehicle,
-                from_city=from_city,
-                to_city=to_city,
-                departure_time=departure_time,
-                arrival_time=arrival_time,
-                front_seat_price=front_seat_price,
-                middle_seat_price=middle_seat_price,
-                back_seat_price=back_seat_price,
-                is_bookable=is_bookable,
-                is_active=is_active,
-                booking_cutoff_minutes=random.choice([15, 30, 45, 60])
-            )
-            
-            try:
-                trip.save()
-                trips.append(trip)
-            except Exception as e:
-                self.stdout.write(self.style.WARNING(f'Не удалось создать поездку: {str(e)}'))
-        
-        return trips
-
     def create_users(self, count):
         users = []
         first_names = ['Александр', 'Иван', 'Дмитрий', 'Михаил', 'Сергей', 'Андрей', 'Николай', 
@@ -225,6 +187,90 @@ class Command(BaseCommand):
                 self.stdout.write(self.style.WARNING(f'Не удалось создать пользователя: {str(e)}'))
         
         return users
+
+    def create_drivers(self, count, driver_group):
+        drivers = []
+        first_names = ['Алексей', 'Владимир', 'Константин', 'Павел', 'Евгений', 'Виктор', 'Геннадий']
+        last_names = ['Сидоров', 'Морозов', 'Волков', 'Лебедев', 'Козлов', 'Новиков', 'Макаров']
+        
+        for i in range(count):
+            # Генерируем случайный номер телефона для водителя
+            phone_number_str = f"+7{random.randint(9000000000, 9999999999)}"
+            phone_number = PhoneNumber.from_string(phone_number_str)
+            
+            # Выбираем случайные имя и фамилию
+            first_name = random.choice(first_names)
+            last_name = random.choice(last_names)
+            
+            driver = User(
+                phone_number=phone_number,
+                first_name=first_name,
+                last_name=last_name,
+            )
+            
+            try:
+                driver.save()
+                # Добавляем пользователя в группу водителей
+                driver.groups.add(driver_group)
+                drivers.append(driver)
+            except Exception as e:
+                self.stdout.write(self.style.WARNING(f'Не удалось создать водителя: {str(e)}'))
+        
+        return drivers
+
+    def create_trips(self, count, cities, vehicles, drivers):
+        trips = []
+        
+        for i in range(count):
+            # Выбираем случайные города отправления и прибытия
+            from_city, to_city = random.sample(cities, 2)
+            
+            # Выбираем случайное транспортное средство
+            vehicle = random.choice(vehicles)
+            
+            # Выбираем случайного водителя
+            driver = random.choice(drivers) if drivers else None
+            
+            # Генерируем случайные даты в будущем (от 1 до 30 дней)
+            now = timezone.now()
+            departure_days = random.randint(-30, 30)
+            departure_time = now + timedelta(days=departure_days, hours=random.randint(0, 23))
+            
+            # Длительность поездки от 1 до 12 часов
+            trip_duration = timedelta(hours=random.randint(1, 12))
+            arrival_time = departure_time + trip_duration
+            
+            # Генерируем случайные цены
+            front_seat_price = Decimal(random.randint(500, 2000))
+            middle_seat_price = Decimal(random.randint(400, 1800))
+            back_seat_price = Decimal(random.randint(300, 1500))
+            
+            # Доступность для бронирования (Если поездка в прошлом, то не доступна для бронирования)
+            is_bookable = random.random() < 0.9 if departure_time > timezone.now() else False
+            is_active = random.random() < 0.9 if departure_time > timezone.now() else False
+            
+            trip = Trip(
+                vehicle=vehicle,
+                driver=driver,
+                from_city=from_city,
+                to_city=to_city,
+                departure_time=departure_time,
+                arrival_time=arrival_time,
+                front_seat_price=front_seat_price,
+                middle_seat_price=middle_seat_price,
+                back_seat_price=back_seat_price,
+                is_bookable=is_bookable,
+                is_active=is_active,
+                booking_cutoff_minutes=random.choice([15, 30, 45, 60])
+            )
+            
+            try:
+                trip.save()
+                trips.append(trip)
+            except Exception as e:
+                self.stdout.write(self.style.WARNING(f'Не удалось создать поездку: {str(e)}'))
+        
+        return trips
 
     def create_bookings(self, count, users, trips):
         bookings = []

@@ -27,6 +27,11 @@ class BookingAPITest(APITestCase):
         # Создаем пользователя
         self.user = User.objects.create_user('+79111111111', 'userpass')
         
+        # Создаем водителя и добавляем его в группу Водитель
+        self.driver = User.objects.create_user('+79555555555', 'driverpass')
+        driver_group, _ = Group.objects.get_or_create(name='Водитель')
+        self.driver.groups.add(driver_group)
+        
         # Создаем города
         from_city = City.objects.create(name='Москва')
         to_city = City.objects.create(name='Санкт-Петербург')
@@ -42,6 +47,7 @@ class BookingAPITest(APITestCase):
         # Создаем поездку
         self.trip = Trip.objects.create(
             vehicle=vehicle,
+            driver=self.driver,
             from_city=from_city,
             to_city=to_city,
             departure_time=timezone.now() + timedelta(days=1),

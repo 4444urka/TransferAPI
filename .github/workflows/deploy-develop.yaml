@@ -42,6 +42,9 @@ jobs:
             echo "Starting Docker containers..."
             docker compose up -d
             
+            echo "Making migrations..."
+            docker compose exec -T web python src/manage.py makemigrations
+
             echo "Applying migrations..."
             docker compose exec -T web python src/manage.py migrate
             

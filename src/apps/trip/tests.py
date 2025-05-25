@@ -35,10 +35,16 @@ class TripModelTest(TestCase):
             air_conditioning=True,
             allows_pets=False
         )
-
+        
+        # Создаем водителя
+        self.driver = User.objects.create_user('+79111111113', 'driverpass')
+        driver_group, _ = Group.objects.get_or_create(name='Водитель')
+        self.driver.groups.add(driver_group)
+        
         # Создаем поездку
         self.trip = Trip.objects.create(
             vehicle=self.vehicle,
+            driver=self.driver,
             from_city=self.from_city,
             to_city=self.to_city,
             departure_time=timezone.now() + timedelta(days=1),
@@ -78,6 +84,11 @@ class TripViewSetTest(APITestCase):
         # Создаем пользователей
         self.admin_user = User.objects.create_superuser('+79111111111', 'adminpass')
         self.regular_user = User.objects.create_user('+79111111112', 'userpass')
+        self.driver1 = User.objects.create_user('+79111111113', 'driverpass')
+        driver_group, _ = Group.objects.get_or_create(name='Водитель')
+        self.driver1.groups.add(driver_group)
+        self.driver2 = User.objects.create_user('+79111111114', 'driverpass')
+        self.driver2.groups.add(driver_group)
 
         # Создаем города
         self.from_city = City.objects.create(name='Москва')
@@ -109,6 +120,7 @@ class TripViewSetTest(APITestCase):
         # Создаем поездки
         self.trip = Trip.objects.create(
             vehicle=self.vehicle1,
+            driver=self.driver1,
             from_city=self.from_city,
             to_city=self.to_city,
             departure_time=self.now + timedelta(days=1),
@@ -120,6 +132,7 @@ class TripViewSetTest(APITestCase):
 
         self.future_trip = Trip.objects.create(
             vehicle=self.vehicle2,
+            driver=self.driver2,
             from_city=self.from_city,
             to_city=self.to_city,
             departure_time=self.now + timedelta(days=2),
@@ -132,6 +145,7 @@ class TripViewSetTest(APITestCase):
         # Поездка в другой город
         self.another_trip = Trip.objects.create(
             vehicle=self.vehicle1,
+            driver=self.driver1,
             from_city=self.from_city,
             to_city=self.another_city,
             departure_time=self.now + timedelta(days=3),
@@ -196,6 +210,7 @@ class TripViewSetTest(APITestCase):
 
         data = {
             "vehicle": self.vehicle1.id,
+            "driver": self.driver1.id,
             "from_city_name": self.from_city.name,
             "to_city_name": self.another_city.name,
             "departure_time": departure_time.strftime("%Y-%m-%dT%H:%M:%S"),
@@ -222,6 +237,7 @@ class TripViewSetTest(APITestCase):
             "middle_seat_price": "1100.00",
             "back_seat_price": "1100.00",
             "vehicle": self.vehicle1.id,
+            "driver": self.driver1.id,
             "from_city_name": self.from_city.name,
             "to_city_name": self.to_city.name,
             "departure_time": self.trip.departure_time.strftime("%Y-%m-%dT%H:%M:%S"),
@@ -263,6 +279,9 @@ class TripPaginationTest(APITestCase):
 
         # Создаем пользователя
         self.user = User.objects.create_user('+79111111112', 'userpass')
+        self.driver = User.objects.create_user('+79111111113', 'driverpass')
+        driver_group, _ = Group.objects.get_or_create(name='Водитель')
+        self.driver.groups.add(driver_group)
 
         # Создаем города и транспорт
         self.from_city = City.objects.create(name='Москва')
@@ -278,6 +297,7 @@ class TripPaginationTest(APITestCase):
         for i in range(30):
             Trip.objects.create(
                 vehicle=self.vehicle,
+                driver=self.driver,
                 from_city=self.from_city,
                 to_city=self.to_city,
                 departure_time=now + timedelta(days=i + 1),
@@ -332,6 +352,9 @@ class TripPermissionsTest(APITestCase):
         self.admin_user = User.objects.create_superuser('+79111111111', 'adminpass')
         self.manager_user = User.objects.create_user('+79222222222', 'managerpass')
         self.regular_user = User.objects.create_user('+79333333333', 'userpass')
+        self.driver = User.objects.create_user('+79111111113', 'driverpass')
+        driver_group, _ = Group.objects.get_or_create(name='Водитель')
+        self.driver.groups.add(driver_group)
 
         # Создаем группу менеджеров с правами на операции с поездками
         self.manager_group, _ = Group.objects.get_or_create(name='Менеджеры поездок')
@@ -380,6 +403,7 @@ class TripPermissionsTest(APITestCase):
         # Создаем поездку для тестов
         self.trip = Trip.objects.create(
             vehicle=self.vehicle,
+            driver=self.driver,
             from_city=self.from_city,
             to_city=self.to_city,
             departure_time=timezone.now() + timedelta(days=1),
@@ -418,6 +442,7 @@ class TripPermissionsTest(APITestCase):
         """Тест создания поездки неавторизованным пользователем"""
         data = {
             "vehicle": self.vehicle.id,
+            "driver": self.driver.id,
             "from_city_name": self.from_city.name,
             "to_city_name": self.to_city.name,
             "departure_time": (timezone.now() + timedelta(days=5)).strftime("%Y-%m-%dT%H:%M:%S"),
@@ -434,6 +459,7 @@ class TripPermissionsTest(APITestCase):
         self.client.force_authenticate(user=self.regular_user)
         data = {
             "vehicle": self.vehicle.id,
+            "driver": self.driver.id,
             "from_city_name": self.from_city.name,
             "to_city_name": self.to_city.name,
             "departure_time": (timezone.now() + timedelta(days=5)).strftime("%Y-%m-%dT%H:%M:%S"),
@@ -454,6 +480,7 @@ class TripPermissionsTest(APITestCase):
         
         data = {
             "vehicle": self.vehicle.id,
+            "driver": self.driver.id,
             "from_city_name": self.from_city.name,
             "to_city_name": self.to_city.name,
             "departure_time": departure_time.strftime("%Y-%m-%dT%H:%M:%S"),
@@ -490,6 +517,7 @@ class TripPermissionsTest(APITestCase):
         
         data = {
             "vehicle": self.vehicle.id,
+            "driver": self.driver.id,
             "from_city_name": self.from_city.name,
             "to_city_name": self.to_city.name,
             "departure_time": self.trip.departure_time.strftime("%Y-%m-%dT%H:%M:%S"),
@@ -528,6 +556,7 @@ class TripPermissionsTest(APITestCase):
         # Создаем новую поездку, чтобы не влиять на другие тесты
         new_trip = Trip.objects.create(
             vehicle=self.vehicle,
+            driver=self.driver,
             from_city=self.from_city,
             to_city=self.to_city,
             departure_time=timezone.now() + timedelta(days=2),
@@ -564,6 +593,7 @@ class TripPermissionsTest(APITestCase):
 
         data = {
             "vehicle": self.vehicle.id,
+            "driver": self.driver.id,
             "from_city_name": self.from_city.name,
             "to_city_name": self.to_city.name,
             "departure_time": (timezone.now() + timedelta(days=5)).strftime("%Y-%m-%dT%H:%M:%S"),

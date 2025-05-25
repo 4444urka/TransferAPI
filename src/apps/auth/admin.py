@@ -20,12 +20,16 @@ class CustomUserChangeForm(UserChangeForm):
 
     def clean_chat_id(self):
         chat_id = self.cleaned_data.get('chat_id')
+        
+        if not chat_id:
+            return chat_id
+            
         user_id = self.instance.id if self.instance else None
         try:
             return self.user_service.validate_chat_id(chat_id, user_id=user_id)
         except serializers.ValidationError as e:
             chat_errors = e.detail.get('chat_id')
-        raise DjangoValidationError(chat_errors or 'Invalid chat_id')
+            raise DjangoValidationError(chat_errors or 'Invalid chat_id')
 
 
     class Meta:

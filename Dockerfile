@@ -27,6 +27,11 @@ RUN poetry install --no-root
 # Этап финального образа
 FROM python:3.13-slim
 
+# Устанавливаем системные зависимости для healthcheck
+RUN apt-get update && apt-get install -y \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
 # Устанавливаем переменные окружения
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1

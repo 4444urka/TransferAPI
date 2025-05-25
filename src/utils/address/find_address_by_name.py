@@ -1,5 +1,7 @@
 import requests
 import logging
+
+from .preprocess import simplify_address
 from .cache_utils import cached_address_lookup
 
 logger = logging.getLogger(__name__)
@@ -20,6 +22,8 @@ def find_address_by_name(address: str, city: str = None) -> str | None:
     if address is None or not address.strip() or address.isdigit():
         logger.error("Street name is empty or invalid")
         return None
+    
+    address = simplify_address(address)
     
     logger.debug(f"Trying to find address using API: '{address}' in '{city}'")
     

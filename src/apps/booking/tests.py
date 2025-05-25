@@ -618,7 +618,7 @@ class BookingAPITest(APITestCase):
     def test_create_booking(self, mock_find_address):
         """Тест создания бронирования"""
         # Настраиваем мок
-        mock_find_address.return_value = "ул. Ленина, 1"
+        mock_find_address.return_value = "ул. Арбат, 1"
         
         # Получаем свободное место для бронирования
         available_trip_seat = TripSeat.objects.filter(trip=self.trip, is_booked=False).first()
@@ -634,8 +634,8 @@ class BookingAPITest(APITestCase):
             'trip_id': self.trip.id,
             'seat_numbers': [available_trip_seat.seat.seat_number],
             'payment': {'id': payment.id},
-            'pickup_location': 'ул. Ленина, 1',
-            'dropoff_location': 'ул. Ленина, 2',
+            'pickup_location': 'ул. Арбат, 1',
+            'dropoff_location': 'ул. Невский проспект, 2',
         }
         
         response = self.client.post(self.booking_list_url, data, format='json')

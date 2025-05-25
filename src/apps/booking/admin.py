@@ -12,34 +12,33 @@ class BookingForm(forms.ModelForm):
         model = Booking
         fields = '__all__'  
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        
-        if self.instance and self.instance.pk and self.instance.trip:
-             self.fields['trip_seats'].queryset = TripSeat.objects.filter(trip=self.instance.trip)
-        elif 'trip' in self.initial:
-            try:
-                trip_id = self.initial['trip']
-                trip = Trip.objects.get(pk=trip_id)
-                self.fields['trip_seats'].queryset = TripSeat.objects.filter(trip=trip)
-            except (Trip.DoesNotExist, ValueError, TypeError):
-                # Если trip не найден или некорректен, оставляем queryset по умолчанию или делаем пустым
-                # JS все равно его очистит, если trip не будет выбран
-                self.fields['trip_seats'].queryset = TripSeat.objects.none()
-        else:
-            # При добавлении, если trip не выбран, JS должен очистить поле
-             self.fields['trip_seats'].queryset = TripSeat.objects.none()
-
     def clean_trip_seats(self):
         trip = self.cleaned_data.get('trip')
         trip_seats = self.cleaned_data.get('trip_seats')
+        
+        if trip and trip.is_active == False and trip.is_bookable == False:
+            raise ValidationError("Выбранная поездка не активна или не доступна для бронирования.")
+        
+        if trip and not trip_seats:
+            raise ValidationError("Выберите места для бронирования.")
 
         if trip and trip_seats:
+            
             for trip_seat in trip_seats:
                 if trip_seat.trip != trip:
                     raise ValidationError(
                         f"Место {trip_seat.seat} не принадлежит выбранной поездке {trip}."
                     )
+                if trip_seat.is_booked:
+                    # Если это редактирование существующего бронирования, проверяем, 
+                    # не забронировано ли место текущим бронированием
+                    if self.instance and self.instance.pk:
+                        current_booking_seat_ids = list(self.instance.trip_seats.values_list('id', flat=True))
+                        if trip_seat.id not in current_booking_seat_ids:
+                            raise ValidationError(f"Место {trip_seat.seat} уже забронировано другим пользователем.")
+                    else:
+                        raise ValidationError(f"Место {trip_seat.seat} уже забронировано.")
+        
         return trip_seats
 
     # Добавляем общий метод clean для проверки суммы платежа

@@ -51,7 +51,6 @@ class TripService:
     def create_trip(self, validated_data):
         """Создание новой поездки"""
         trip = Trip.objects.create(**validated_data)
-        self.invalidate_cache()
         self.logger.info(f"Created new trip: {trip}")
         return trip
 

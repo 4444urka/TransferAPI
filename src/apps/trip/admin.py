@@ -1,6 +1,7 @@
 from django.contrib import admin
 from django import forms
 from .models import Trip, City
+from apps.auth.models import User
 
 @admin.register(City)
 class CityAdmin(admin.ModelAdmin):
@@ -15,12 +16,12 @@ class TripAdminForm(forms.ModelForm):
 
 @admin.register(Trip)
 class TripAdmin(admin.ModelAdmin):
-    list_display = ('vehicle', 'from_city', 'to_city', 'departure_time', 'arrival_time', 'front_seat_price', 'middle_seat_price', 'back_seat_price', 'is_bookable', 'booking_cutoff_minutes')
-    list_filter = ('vehicle', 'from_city', 'to_city', 'departure_time', 'is_bookable')
+    list_display = ('vehicle', 'from_city', 'to_city', 'departure_time', 'arrival_time', 'front_seat_price', 'middle_seat_price', 'back_seat_price', 'is_bookable', 'booking_cutoff_minutes', 'driver')
+    list_filter = ('vehicle', 'from_city', 'to_city', 'departure_time', 'is_bookable', 'driver')
     search_fields = ('vehicle__license_plate', 'from_city__name', 'to_city__name', 'is_bookable')
     fieldsets = (
         (None, {
-            'fields': ('vehicle', 'from_city', 'to_city')
+            'fields': ('vehicle', 'driver', 'from_city', 'to_city')
         }),
         ('Время', {
             'fields': (('departure_time', 'arrival_time'),),
@@ -50,3 +51,8 @@ class TripAdmin(admin.ModelAdmin):
             super().save_model(request, obj, form, change)
         except forms.ValidationError as e:
             form.add_error(None, e)
+
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        if db_field.name == "driver":
+            kwargs["queryset"] = User.objects.filter(groups__name='Водитель')
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)

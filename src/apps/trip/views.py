@@ -13,6 +13,7 @@ from .filters import TripFilter
 from .models import Trip
 from .permissions import HasTripPermission
 from .serializers import TripDetailSerializer, TripCreateUpdateSerializer
+from .services.CityService import CityService
 from .services.TripService import TripService
 from apps.seat.models import TripSeat
 from apps.seat.serializers import TripSeatSerializer
@@ -104,7 +105,6 @@ class TripViewSet(viewsets.ModelViewSet):
         if 'from_city_name' in validated_data:
             from_city_name = validated_data.pop('from_city_name')
             try:
-                from .services.CityService import CityService
                 city_service = CityService()
                 from_city = city_service.get_by_name(from_city_name)
                 validated_data['from_city'] = from_city
@@ -117,7 +117,6 @@ class TripViewSet(viewsets.ModelViewSet):
         if 'to_city_name' in validated_data:
             to_city_name = validated_data.pop('to_city_name')
             try:
-                from .services.CityService import CityService
                 city_service = CityService()
                 to_city = city_service.get_by_name(to_city_name)
                 validated_data['to_city'] = to_city
@@ -129,6 +128,7 @@ class TripViewSet(viewsets.ModelViewSet):
         
         # Создаем поездку через сервис
         trip = trip_service.create_trip(validated_data)
+        trip_service.invalidate_cache()
         
         # Возвращаем созданную поездку
         result_serializer = TripDetailSerializer(trip)

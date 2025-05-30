@@ -15,9 +15,6 @@ class SeatSerializer(serializers.ModelSerializer):
 
     
 class TripSeatSerializer(serializers.ModelSerializer):
-    seat = SeatSerializer(read_only=True)
-    trip = TripDetailSerializer(read_only=True)
-
     class Meta:
         model = TripSeat
         fields = ('id', 'trip', 'seat', 'is_booked', 'cost')

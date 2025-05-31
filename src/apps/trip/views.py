@@ -78,6 +78,8 @@ class TripViewSet(viewsets.ModelViewSet):
     )
     @method_decorator(cache_page(60 * 5))  # кэш на 5 минут
     def list(self, request, *args, **kwargs):
+        # Отключаем пагинацию для этого метода
+        self.pagination_class = None
         return super().list(request, *args, **kwargs)
 
     @swagger_auto_schema(

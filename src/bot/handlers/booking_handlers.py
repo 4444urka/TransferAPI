@@ -2,7 +2,7 @@ from telebot import types
 from datetime import datetime
 from bot.api import ApiClient
 from bot.setup import config
-from bot.handlers.common import main_menu, auth_keyboard
+from bot.handlers.common import main_menu, start_keyboard
 from bot.tools import show_bookings
 import logging
 
@@ -25,7 +25,7 @@ def register_booking_handlers(bot):
                 logger.info(f'Checking user authorization for chat_id: {chat_id}')
                 if not user_data or not user_data.get('refresh'):
                     logger.warning(f"Unauthorized access attempt: {chat_id}")
-                    bot.send_message(chat_id, "❌ Требуется авторизация!", reply_markup=auth_keyboard())
+                    bot.send_message(chat_id, "❌ Требуется авторизация!", reply_markup=start_keyboard())
                     return
 
                 # Attempting to get bookings with current token
@@ -40,11 +40,11 @@ def register_booking_handlers(bot):
                         new_tokens = ApiClient.refresh_tokens(user_data['refresh'])
                     except KeyError:
                         logger.error("Refresh token missing in user_data")
-                        bot.send_message(chat_id, "❌ Сессия устарела, войдите снова", reply_markup=auth_keyboard())
+                        bot.send_message(chat_id, "❌ Сессия устарела, войдите снова", reply_markup=start_keyboard())
                         return
                     except Exception as e:
                         logger.error(f"Refresh failed: {str(e)}", exc_info=True)
-                        bot.send_message(chat_id, "🔒 Ошибка авторизации, войдите снова", reply_markup=auth_keyboard())
+                        bot.send_message(chat_id, "🔒 Ошибка авторизации, войдите снова", reply_markup=start_keyboard())
                         return
 
                     if new_tokens and 'access' in new_tokens and 'refresh' in new_tokens:
@@ -73,7 +73,7 @@ def register_booking_handlers(bot):
                 logger.info(f"User {chat_id} is logging out")
                 config.delete_user_data(chat_id)
                 bot.answer_callback_query(call.id, "✅ Вы успешно вышли!")
-                bot.send_message(chat_id, "Для повторного входа авторизуйтесь:", reply_markup=auth_keyboard())
+                bot.send_message(chat_id, "Для повторного входа авторизуйтесь:", reply_markup=start_keyboard())
                 logger.debug(f"User {chat_id} successfully logged out")
             else:
                 logger.warning(f"Unknown callback query: {call.data} from user {chat_id}")

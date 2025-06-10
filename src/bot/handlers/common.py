@@ -18,3 +18,13 @@ def main_menu():
         types.InlineKeyboardButton("🚪 Выйти", callback_data='logout')
     )
     return markup
+
+
+def start_keyboard():
+    """
+    Возвращает клавиатуру для старта бота.
+    """
+    markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
+    markup.add(types.KeyboardButton("Оставить отзыв"))
+    markup.add(types.KeyboardButton("Войти в аккаунт", request_contact=True))
+    return markup

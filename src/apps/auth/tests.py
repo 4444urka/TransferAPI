@@ -503,3 +503,85 @@ class UserUpdateTest(APITestCase):
         self.assertEqual(response.data.get("first_name"), "AdminUpdated")
         self.assertEqual(response.data.get("chat_id"), "55555")
 
+
+class FeedbackCreateTest(APITestCase):
+    """
+    Тесты для проверки эндпоинта /auth/feedback/create/.
+    Позволяет отправлять отзывы как аутентифицированным, так и анонимным пользователям.
+    """
+
+    def setUp(self):
+        self.user_phone = "+79223334455"
+        self.password = "testpassword123."
+
+        # Создаем пользователя напрямую через модель
+        self.user = User.objects.create_user(
+            phone_number=self.user_phone,
+            password=self.password,
+            first_name="Normal",
+            last_name="User"
+        )
+
+        # Получаем токен для пользователя
+        response = self.client.post(
+            reverse('token_obtain_pair'),
+            {"phone_number": self.user_phone, "password": self.password},
+            format='json'
+        )
+        self.user_token = response.data.get('access')
+
+        self.feedback_url = reverse('feedback_create')
+
+    def test_create_feedback_anonymous(self):
+        """Анонимный пользователь может отправить отзыв."""
+        data = {
+            "chat_id": "123456789",
+            "message": "отзыв"
+        }
+        response = self.client.post(self.feedback_url, data=data, format='json')
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.data.get("chat_id"), "123456789")
+        self.assertIsNone(response.data.get("user_id"))
+
+    def test_create_feedback_authenticated(self):
+        """Аутентифицированный пользователь может отправить отзыв."""
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.user_token}')
+        data = {
+            "chat_id": "123456789",
+            "message": "отзыв"
+        }
+        response = self.client.post(self.feedback_url, data=data, format='json')
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.data.get("chat_id"), "123456789")
+        self.assertEqual(response.data.get("user_id"), self.user.id)
+
+    def test_create_feedback_invalid_data(self):
+        """Отправка отзыва с некорректными данными возвращает ошибку."""
+        # Пустые chat_id и message
+        data1 = {
+            "chat_id": None,
+            "message": ""
+        }
+        response = self.client.post(self.feedback_url, data=data1, format='json')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("chat_id", response.data)
+        self.assertIn("message", response.data)
+
+        # Пустой chat_id
+        data2 = {
+            "chat_id": None,
+            "message": "Valid message"
+        }
+        response = self.client.post(self.feedback_url, data=data2, format='json')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("chat_id", response.data)
+
+        # Пустой message
+        data3 = {
+            "chat_id": "123456789",
+            "message": ""
+        }
+        response = self.client.post(self.feedback_url, data=data3, format='json')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("message", response.data)
+

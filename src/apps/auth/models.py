@@ -87,8 +87,8 @@ class Feedback(models.Model):
     )
     chat_id = models.CharField(
         max_length=255, 
-        null=True, 
-        blank=True, 
+        null=False, 
+        blank=False, 
         verbose_name='Телеграм Чат ID'
     )
     message = models.TextField(

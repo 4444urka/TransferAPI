@@ -118,3 +118,13 @@ class FeedbackSerializer(serializers.ModelSerializer):
         model = Feedback
         fields = ['id', 'user', 'chat_id', 'message', 'message_datetime']
         read_only_fields = ['id', 'message_datetime']
+
+    def validate_chat_id(self, value):
+        if not value:
+            raise serializers.ValidationError("Это поле не может быть пустым.")
+        return value
+
+    def validate_message(self, value):
+        if not value:
+            raise serializers.ValidationError("Это поле не может быть пустым.")
+        return value

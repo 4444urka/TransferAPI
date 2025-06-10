@@ -133,8 +133,8 @@ class CreateFeedbackView(generics.CreateAPIView):
         return Response(
             {
                 "user_id": feedback.user.id if feedback.user else None,
-                "chat_id": feedback.chat_id if feedback.chat_id else None,
-                "message": "Message created successfully",
+                "chat_id": feedback.chat_id,
+                "status": "Feedback created successfully",
             },
             status=status.HTTP_201_CREATED
         )

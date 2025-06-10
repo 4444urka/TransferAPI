@@ -2,7 +2,7 @@ import logging
 
 from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
-from .models import User
+from .models import User, Feedback
 from .services import UserService
 
 logger = logging.getLogger(__name__)
@@ -111,3 +111,10 @@ class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
             raise serializers.ValidationError('Error creating token')
         logger.info(f'Created new token')
         return token
+
+
+class FeedbackSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Feedback
+        fields = ['id', 'user', 'chat_id', 'message', 'message_datetime']
+        read_only_fields = ['id', 'message_datetime']

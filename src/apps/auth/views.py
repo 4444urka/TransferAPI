@@ -125,8 +125,19 @@ class CreateFeedbackView(generics.CreateAPIView):
     )
     def perform_create(self, serializer):
         # Если пользователь аутентифицирован, связываем отзыв с пользователем
-        serializer.save(user=self.request.user if self.request.user.is_authenticated else None)
+        user = self.request.user if self.request.user.is_authenticated else None
 
+        # Если пользователь не аутентифицирован, ищем его по chat_id
+        if not user:
+            chat_id = self.request.data.get("chat_id")
+            if chat_id:
+                try:
+                    user = User.objects.get(chat_id=chat_id)
+                except User.DoesNotExist:
+                    user = None
+
+        # Сохраняем отзыв с найденным пользователем (или без него)
+        serializer.save(user=user)
     def create(self, request, *args, **kwargs):
         response = super().create(request, *args, **kwargs)
         feedback = self.get_queryset().get(id=response.data['id'])

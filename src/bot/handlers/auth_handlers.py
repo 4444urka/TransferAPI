@@ -6,28 +6,7 @@ from bot.handlers.common import main_menu, start_keyboard
 
 logger = logging.getLogger(__name__)
 
-def register_auth_handlers(bot):
-    @bot.message_handler(commands=['start'])
-    def handle_start(message):
-        logger.info(f"User {message.chat.id} started the bot.")
-        bot.send_message(message.chat.id, "Добро пожаловать! Выберите действие:", reply_markup=start_keyboard())
-    
-    @bot.message_handler(func=lambda message: message.text == "Оставить отзыв")
-    def handle_feedback_request(message):
-        logger.info(f"User {message.chat.id} wants to leave feedback.")
-        msg = bot.send_message(message.chat.id, "Напишите отзыв о работе сервиса:", reply_markup=types.ReplyKeyboardRemove())
-        bot.register_next_step_handler(msg, handle_feedback_submission)
-    
-    def handle_feedback_submission(message):
-        logger.info(f"Feedback received from user {message.chat.id}: {message.text}")
-        bot.send_message(message.chat.id, "Спасибо за оставленный отзыв!")
-        handle_start(message)
-
-    # @bot.message_handler(func=lambda message: message.text == "-")
-    # def handle_input_contact(message):
-    #     logger.info(f"Try to request contact: {message.chat.id}")
-    #     bot.send_message(message.chat.id, "Для входа отправьте номер телефона:", reply_markup=auth_keyboard())
-
+def register_auth_handlers(bot): 
     @bot.message_handler(content_types=['contact'])
     def handle_contact(message):
         logger.debug(f"Received contact from: {message.chat.id}")

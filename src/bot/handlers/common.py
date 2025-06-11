@@ -17,6 +17,10 @@ def main_menu():
         types.InlineKeyboardButton("🚖 Мои бронирования", callback_data='bookings'),
         types.InlineKeyboardButton("🚪 Выйти", callback_data='logout')
     )
+    markup.row(
+        types.InlineKeyboardButton("💬 Оставить отзыв", callback_data='feedback'),
+        types.InlineKeyboardButton("📅 О нас", callback_data='info')
+    )
     return markup
 
 
@@ -25,6 +29,7 @@ def start_keyboard():
     Возвращает клавиатуру для старта бота.
     """
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
-    markup.add(types.KeyboardButton("Оставить отзыв"))
-    markup.add(types.KeyboardButton("Войти в аккаунт", request_contact=True))
+    markup.add(types.KeyboardButton("💬 Оставить отзыв"))
+    markup.add(types.KeyboardButton("📱 Отправить номер", request_contact=True))
     return markup
+

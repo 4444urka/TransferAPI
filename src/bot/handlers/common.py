@@ -28,8 +28,9 @@ def start_keyboard():
     """
     Возвращает клавиатуру для старта бота.
     """
+    webapp = types.WebAppInfo(url="https://dfbe-51-15-184-156.ngrok-free.app/login/")  
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
     markup.add(types.KeyboardButton("💬 Оставить отзыв"))
-    markup.add(types.KeyboardButton("📱 Отправить номер", request_contact=True))
+    markup.add(types.KeyboardButton("📱 Войти", web_app=webapp))
     return markup
 

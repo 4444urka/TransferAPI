@@ -13,7 +13,7 @@ logger = logging.getLogger('bot.booking_handlers')  # More specific logger name
 def register_booking_handlers(bot):
     logger.info("Registering booking handlers")
     
-    @bot.callback_query_handler(func=lambda call: True)
+    @bot.callback_query_handler(func=lambda call: call.data in ['bookings', 'logout'])
     def handle_booking(call):
         try:
             chat_id = call.message.chat.id

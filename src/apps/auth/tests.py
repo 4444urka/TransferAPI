@@ -585,3 +585,62 @@ class FeedbackCreateTest(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn("message", response.data)
 
+
+class UserDeleteTest(APITestCase):
+    def setUp(self):
+        self.user_phone = "+79223334455"
+        self.admin_phone = "+79147282571"
+        self.password = "testpassword123."
+
+        # Создаем обычного пользователя
+        self.user = User.objects.create_user(
+            phone_number=self.user_phone,
+            password=self.password,
+            first_name="Normal",
+            last_name="User"
+        )
+
+        # Создаем суперпользователя
+        self.admin = User.objects.create_superuser(
+            phone_number=self.admin_phone,
+            password=self.password,
+            first_name="Admin",
+            last_name="User"
+        )
+
+        # Получаем токены
+        user_response = self.client.post(
+            reverse('token_obtain_pair'),
+            {"phone_number": self.user_phone, "password": self.password},
+            format='json'
+        )
+        self.user_token = user_response.data.get('access')
+
+        admin_response = self.client.post(
+            reverse('token_obtain_pair'),
+            {"phone_number": self.admin_phone, "password": self.password},
+            format='json'
+        )
+        self.admin_token = admin_response.data.get('access')
+
+        self.delete_url = reverse('user_delete')
+
+    def test_delete_user_authenticated(self):
+        """Обычный пользователь может удалить только свой аккаунт."""
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.user_token}')
+        response = self.client.delete(self.delete_url)
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+        self.assertFalse(User.objects.filter(phone_number=self.user_phone).exists())
+
+    def test_delete_user_unauthenticated(self):
+        """Неаутентифицированный пользователь не может удалить аккаунт."""
+        response = self.client.delete(self.delete_url)
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_delete_admin_user(self):
+        """Суперпользователь может удалить свой аккаунт, не затрагивая других пользователей."""
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.admin_token}')
+        response = self.client.delete(self.delete_url)
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+        self.assertFalse(User.objects.filter(phone_number=self.admin_phone).exists())
+        self.assertTrue(User.objects.filter(phone_number=self.user_phone).exists())

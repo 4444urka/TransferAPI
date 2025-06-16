@@ -69,6 +69,17 @@ class UpdateUserView(generics.GenericAPIView):
         updated_user = serializer.save() # вызов update_user инкапсулирован в сериализаторе
         return Response(self.get_serializer(updated_user).data, status=status.HTTP_200_OK)
 
+class DeleteUserView(generics.DestroyAPIView):
+    permission_classes = [HasUserPermissions]
+
+    def get_object(self):
+        # Удаляем только текущего пользователя
+        return self.request.user
+
+    def delete(self, request, *args, **kwargs):
+        user = self.get_object()
+        user.delete()
+        return Response({"message": "User account deleted successfully"}, status=status.HTTP_204_NO_CONTENT)
 
 class RegistrationUserView(generics.CreateAPIView):
     serializer_class = UserRegistrationSerializer

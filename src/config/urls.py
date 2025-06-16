@@ -1,5 +1,7 @@
 from django.contrib import admin
 from django.urls import path, include, re_path
+from django.views.generic import TemplateView
+
 from rest_framework.routers import DefaultRouter
 from drf_yasg.views import get_schema_view
 from drf_yasg import openapi
@@ -21,6 +23,7 @@ urlpatterns = [
     path('api/', include(router.urls)),
     path('', include('apps.booking.urls')),
     path('utils/', include('apps.utils.urls')),
+    path('login/', TemplateView.as_view(template_name='login.html'), name='login'),
 
     # URL для Swagger UI
     re_path(r'^swagger(?P<format>\.json|\.yaml)$', schema_view.without_ui(cache_timeout=0), name='schema-json'),

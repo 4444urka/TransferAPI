@@ -11,6 +11,9 @@ from bot.setup import config
 from telebot import TeleBot
 from bot.handlers.auth_handlers import register_auth_handlers
 from bot.handlers.booking_handlers import register_booking_handlers
+from bot.handlers.meet_handlers import register_meet_handlers
+from bot.handlers.feedback_handlers import register_feedback_handlers
+from bot.handlers.info_handlers import register_info_handlers
 
 # Применяем конфигурацию логирования из config/logging.py
 logging.config.dictConfig(LOGGING)
@@ -21,8 +24,11 @@ logger = logging.getLogger('bot')
 def setup_bot():
     logger.debug("Setting up Telegram bot...")
     bot = TeleBot(config.BOT_TOKEN)
+    register_meet_handlers(bot)
     register_auth_handlers(bot)
+    register_feedback_handlers(bot)
     register_booking_handlers(bot)
+    register_info_handlers(bot)
     return bot
 
 def start_bot():

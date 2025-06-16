@@ -10,6 +10,9 @@ class HasSeatPermission(permissions.BasePermission):
 
 
     def has_permission(self, request, view):
+        # Если пользователь не аутентифицирован, доступ запрещен
+        if not request.user.is_authenticated:
+            return False
         
         # Если суперчелик, то нуууу проходи
         if request.user.is_superuser:
@@ -30,6 +33,8 @@ class HasSeatPermission(permissions.BasePermission):
 
         elif view.action == 'destroy' and request.user.has_perm('seat.can_delete_seat'):
             return True
+        
+        return False
 
 
 

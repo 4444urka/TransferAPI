@@ -15,6 +15,8 @@ class Config:
     ACTIVE_BOOKINGS_URL = f"{API_BASE}/api/bookings/?is_active=true&detailed=true"
     TRIPS_URL = f"{API_BASE}/api/trips/"
 
+    FEEDBACK_URL = f"{API_BASE}/auth/feedback/create/"
+
     def USER_UPDATE_URL(self, user_id):
         return f"{self.API_BASE}/auth/users/{user_id}/update/"
 

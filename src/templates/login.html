@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <title>Вход в сервис</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <style>
+    :root {
+      --tg-bg-color: var(--tg-theme-bg-color, #ffffff);
+      --tg-text-color: var(--tg-theme-text-color, #222222);
+      --tg-button-color: var(--tg-theme-button-color, #50a8eb);
+      --tg-button-text-color: var(--tg-theme-button-text-color, #ffffff);
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      font-family: "Segoe UI", sans-serif;
+      background-color: var(--tg-bg-color);
+      color: var(--tg-text-color);
+      height: 100%;
+      overflow: hidden; /* ❌ запрещаем прокрутку */
+    }
+
+    .container {
+      width: 90%;
+      max-width: 400px;
+      padding: 24px;
+      margin: auto;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      height: 100%;
+      box-sizing: border-box;
+    }
+
+    h2 {
+      text-align: center;
+      margin-bottom: 20px;
+      font-weight: 600;
+    }
+
+    input {
+      width: 100%;
+      padding: 12px 14px; /* ✅ симметричные отступы */
+      font-size: 16px;
+      margin-bottom: 15px;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      background-color: #f9f9f9;
+      box-sizing: border-box;
+    }
+
+    input:focus {
+      outline: none;
+      border-color: var(--tg-button-color);
+      background-color: #fff;
+    }
+
+    button {
+      width: 100%;
+      padding: 12px;
+      font-size: 16px;
+      font-weight: bold;
+      background-color: var(--tg-button-color);
+      color: var(--tg-button-text-color);
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background-color 0.2s ease;
+    }
+
+    button:hover {
+      background-color: #3c93d9;
+    }
+
+    .error-message {
+      color: red;
+      margin-top: 10px;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>Авторизация</h2>
+    <form id="login-form">
+      <input id="phone" type="tel" placeholder="Номер телефона" required />
+      <input id="password" type="password" placeholder="Пароль" required />
+      <button type="submit">Войти</button>
+    </form>
+  </div>
+
+  <script>
+    const webApp = window.Telegram.WebApp;
+    webApp.expand();
+
+    document.getElementById("login-form").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const phoneInput = document.getElementById("phone");
+      const passwordInput = document.getElementById("password");
+      const phone = phoneInput.value.trim();
+      const pass = passwordInput.value;
+
+      try {
+        const resp = await fetch("https://dfbe-51-15-184-156.ngrok-free.app/auth/token/", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ phone_number: phone, password: pass })
+        });
+        const json = await resp.json();
+        if (!resp.ok) throw new Error(json.detail || "Ошибка авторизации");
+
+        webApp.sendData(JSON.stringify({
+          access: json.access,
+          refresh: json.refresh
+        }));
+      } catch (err) {
+        const errorDiv = document.createElement("div");
+        errorDiv.textContent = "❌ Ошибка: " + err.message;
+        errorDiv.className = "error-message";
+        const form = document.getElementById("login-form");
+        form.parentNode.insertBefore(errorDiv, form.nextSibling);
+      }
+    });
+
+    document.getElementById("phone").addEventListener("input", (e) => {
+      const input = e.target;
+      input.value = input.value.replace(/[^+\d]/g, "");
+    });
+  </script>
+</body>
+</html>

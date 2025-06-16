@@ -55,5 +55,17 @@ class ApiClient:
             headers={"Authorization": f"Bearer {access_token}"}
         )
         return response.json() if response.ok else None
-
     
+
+    @staticmethod
+    def send_feedback(chat_id, message):
+        data = {
+            "message": message,
+            "chat_id": chat_id
+        }
+        response = requests.post(
+            config.FEEDBACK_URL,
+            json=data
+        )
+        return response.json() if response.ok else None
+   

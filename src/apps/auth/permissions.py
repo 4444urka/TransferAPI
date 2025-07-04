@@ -30,6 +30,9 @@ class HasUserPermissions(permissions.BasePermission):
         
         if view.__class__.__name__ == 'UpdateUserView':
             return True
+        
+        if view.__class__.__name__ == 'DeleteUserView':
+            return True
 
         # В остальных случаях запрещаем
         return False

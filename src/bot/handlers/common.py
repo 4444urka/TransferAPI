@@ -17,4 +17,20 @@ def main_menu():
         types.InlineKeyboardButton("🚖 Мои бронирования", callback_data='bookings'),
         types.InlineKeyboardButton("🚪 Выйти", callback_data='logout')
     )
+    markup.row(
+        types.InlineKeyboardButton("💬 Оставить отзыв", callback_data='feedback'),
+        types.InlineKeyboardButton("📅 О нас", callback_data='info')
+    )
     return markup
+
+
+def start_keyboard():
+    """
+    Возвращает клавиатуру для старта бота.
+    """
+    webapp = types.WebAppInfo(url="https://dfbe-51-15-184-156.ngrok-free.app/login/")  
+    markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
+    markup.add(types.KeyboardButton("💬 Оставить отзыв"))
+    markup.add(types.KeyboardButton("📱 Войти", web_app=webapp))
+    return markup
+

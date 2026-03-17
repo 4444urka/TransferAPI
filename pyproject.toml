@@ -23,6 +23,9 @@ psutil = "^7.0.0"
 pyTelegramBotAPI = "^4.26.0"
 celery= "^5.5.0"
 django-cors-headers = "^4.3.1"
+django-environ = "^0.13.0"
+gunicorn = "^25.1.0"
+whitenoise = "^6.12.0"
 
 [build-system]
 requires = ["poetry-core"]

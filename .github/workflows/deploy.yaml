@@ -1,13 +1,14 @@
-name: Deploy to Develop Server
+name: Deploy to Server
 
 on:
   push:
     branches:
       - develop
+      - main
 
 jobs:
   deploy:
-    name: Deploy to Develop
+    name: Deploy to Server
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -30,27 +31,28 @@ jobs:
           DEV_HOST: ${{ secrets.DEV_SERVER_HOST }}
           DEV_SERVER_PASSWORD: ${{ secrets.DEV_SERVER_PASSWORD }}
         run: |
-          sshpass -p "$DEV_SERVER_PASSWORD" ssh -o StrictHostKeyChecking=no $DEV_USER@$DEV_HOST << 'EOF'
-            cd TransferAPI
-            git checkout develop
-            git pull origin develop
-            echo "Pulled latest changes from develop"
-            
+          sshpass -p "$DEV_SERVER_PASSWORD" ssh -o StrictHostKeyChecking=no $DEV_USER@$DEV_HOST << EOF
+            cd ~/TransferAPI
+            git fetch --all
+            git checkout ${{ github.ref_name }}
+            git pull origin ${{ github.ref_name }}
+            echo "Pulled latest changes from ${{ github.ref_name }}"
+
             echo "Building Docker containers..."
-            docker compose build
-            
+            docker compose -f docker-compose.prod.yml build
+
             echo "Starting Docker containers..."
-            docker compose up -d
-            
+            docker compose -f docker-compose.prod.yml up -d
+
             echo "Making migrations..."
-            docker compose exec -T web python src/manage.py makemigrations
+            docker compose -f docker-compose.prod.yml exec -T web python src/manage.py makemigrations
 
             echo "Applying migrations..."
-            docker compose exec -T web python src/manage.py migrate
-            
+            docker compose -f docker-compose.prod.yml exec -T web python src/manage.py migrate
+
             echo "Cleaning up old Docker images..."
             docker image prune -af
-            
-            echo "Deployment to develop server finished."
+
+            echo "Deployment to server finished."
           EOF
         shell: bash

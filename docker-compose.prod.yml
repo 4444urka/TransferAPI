@@ -2,8 +2,6 @@ services:
   db:
     image: postgres:17
     restart: always
-    ports:
-      - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     environment:
@@ -20,8 +18,6 @@ services:
   redis:
     image: redis:latest
     restart: always
-    ports:
-      - "6379:6379"
     volumes:
       - redis_data:/data
     healthcheck:
@@ -99,9 +95,6 @@ services:
   rabbitmq:
     image: rabbitmq:3-management
     restart: always
-    ports:
-      - "5672:5672"
-      - "15672:15672"
     environment:
       RABBITMQ_DEFAULT_USER: ${DB_USER:-busser_killer}
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASS:-password}

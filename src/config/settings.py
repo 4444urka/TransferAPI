@@ -27,10 +27,10 @@ SECRET_KEY = 'django-insecure-!k4=w#1#!b1=hl9)z-t#z5kw@t79*%s7l^91t3j44mpje#0+v0
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['localhost', '127.0.0.1', 'web', '150.241.82.170']
+ALLOWED_HOSTS = ['localhost', '127.0.0.1', 'web', '150.241.82.170', 'dfbe-51-15-184-156.ngrok-free.app']
 
 TELEGRAM_BOT_TOKEN='7553600402:AAFvb8DvJQXpCsrmoABNtw0qw-q8R6izMNw'
-
+# TELEGRAM_BOT_TOKEN = '7805452291:AAF7IV4fnEVTVgIItYu9cLuqnLyU4bw1IJ4'
 
 # Application definition
 
@@ -93,7 +93,7 @@ ROOT_URLCONF = 'config.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [BASE_DIR / 'templates'],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [

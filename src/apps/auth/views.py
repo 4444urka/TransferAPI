@@ -2,11 +2,16 @@ from drf_yasg.utils import swagger_auto_schema
 
 from .services import UserService
 from .permissions import HasUserPermissions
-from .serializers import UserRegistrationSerializer, MyTokenObtainPairSerializer, UserSerializer, UserUpdateSerializer
+from .serializers import (
+    UserRegistrationSerializer, 
+    MyTokenObtainPairSerializer, 
+    UserSerializer, UserUpdateSerializer,
+    FeedbackSerializer
+)
 from rest_framework import generics, status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from .models import User
+from .models import User, Feedback
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
 user_service = UserService()
@@ -64,6 +69,17 @@ class UpdateUserView(generics.GenericAPIView):
         updated_user = serializer.save() # вызов update_user инкапсулирован в сериализаторе
         return Response(self.get_serializer(updated_user).data, status=status.HTTP_200_OK)
 
+class DeleteUserView(generics.DestroyAPIView):
+    permission_classes = [HasUserPermissions]
+
+    def get_object(self):
+        # Удаляем только текущего пользователя
+        return self.request.user
+
+    def delete(self, request, *args, **kwargs):
+        user = self.get_object()
+        user.delete()
+        return Response({"message": "User account deleted successfully"}, status=status.HTTP_204_NO_CONTENT)
 
 class RegistrationUserView(generics.CreateAPIView):
     serializer_class = UserRegistrationSerializer
@@ -104,3 +120,43 @@ class MyTokenRefreshView(TokenRefreshView):
     )
     def post(self, request, *args, **kwargs):
         return super().post(request, *args, **kwargs)
+    
+
+class CreateFeedbackView(generics.CreateAPIView):
+    """
+    Представление для создания отзыва пользователя.
+    """
+    serializer_class = FeedbackSerializer
+    queryset = Feedback.objects.all()
+
+    @swagger_auto_schema(
+        operation_description="Создание отзыва",
+        operation_summary="Создание отзыва",
+        tags=["Отзывы"]
+    )
+    def perform_create(self, serializer):
+        # Если пользователь аутентифицирован, связываем отзыв с пользователем
+        user = self.request.user if self.request.user.is_authenticated else None
+
+        # Если пользователь не аутентифицирован, ищем его по chat_id
+        if not user:
+            chat_id = self.request.data.get("chat_id")
+            if chat_id:
+                try:
+                    user = User.objects.get(chat_id=chat_id)
+                except User.DoesNotExist:
+                    user = None
+
+        # Сохраняем отзыв с найденным пользователем (или без него)
+        serializer.save(user=user)
+    def create(self, request, *args, **kwargs):
+        response = super().create(request, *args, **kwargs)
+        feedback = self.get_queryset().get(id=response.data['id'])
+        return Response(
+            {
+                "user_id": feedback.user.id if feedback.user else None,
+                "chat_id": feedback.chat_id,
+                "status": "Feedback created successfully",
+            },
+            status=status.HTTP_201_CREATED
+        )

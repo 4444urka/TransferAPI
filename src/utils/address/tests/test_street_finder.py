@@ -1,4 +1,5 @@
 from django.test import TestCase
+from unittest.mock import patch
 import logging
 from src.utils.address.find_address_by_name import find_address_by_name
 from django.core.cache import cache
@@ -10,20 +11,43 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 class StreetFinderTest(TestCase):
-    """Тесты для функции поиска улицы с реальным API"""
+    """Тесты для функции поиска улицы с мок API"""
 
     def setUp(self):
         """Настройка для тестов"""
+        class MockResponse:
+            def __init__(self, json_data, status_code=200):
+                self.json_data = json_data
+                self.status_code = status_code
+
+            def json(self):
+                return self.json_data
+
+            def raise_for_status(self):
+                if self.status_code != 200:
+                    raise Exception(f"HTTP Error {self.status_code}")
+
+        def mocked_requests_get(*args, **kwargs):
+            params = kwargs.get('params', {})
+            street = params.get('street', '')
+            if not street or 'Несуществующая' in street or street.isdigit() or street == 'Ленина':
+                return MockResponse([])
+            return MockResponse([{'address': {'road': 'Тестовая', 'house_number': '10'}}])
+
+        self.patcher = patch('src.utils.address.find_address_by_name.requests.get', side_effect=mocked_requests_get)
+        self.patcher.start()
+        self.addCleanup(self.patcher.stop)
+
         self.test_cases = [
             # Реальные адреса Владивостока
             ("Светланская 10", "Владивосток"),
             ("проспект 100-летия Владивостока 12", "Владивосток"),
             ("Океанский проспект 10", "Владивосток"),
-            
+
             # Реальные адреса Уссурийска
             ("Ленина 10", "Уссурийск"),
             ("Краснознаменная 5", "Уссурийск"),
-            
+
             # Реальные адреса Артема
             ("Кирова 15", "Артем"),
             ("Фрунзе 8", "Артем"),

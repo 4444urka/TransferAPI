@@ -3,11 +3,14 @@ from .models import Vehicle
 
 
 class VehicleSerializer(serializers.ModelSerializer):
+    total_seats = serializers.IntegerField(required=False)
+
     class Meta:
         model = Vehicle
         fields = (
             'id', 'vehicle_type', 'license_plate', 'total_seats',
-            'is_comfort', 'air_conditioning', 'allows_pets', 'created_at'
+            'rows', 'seats_per_row', 'is_comfort', 'air_conditioning',
+            'allows_pets', 'created_at'
         )
         read_only_fields = ('created_at',)
 
@@ -25,5 +28,5 @@ class VehicleMinSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Vehicle
-        fields = ('id', 'vehicle_type', 'vehicle_type_display', 'license_plate', 'total_seats', 'is_comfort')
+        fields = ('id', 'vehicle_type', 'vehicle_type_display', 'license_plate', 'total_seats', 'rows', 'seats_per_row', 'is_comfort')
         read_only_fields = fields

@@ -10,25 +10,25 @@ logger = logging.getLogger(__name__)
 def find_address_by_name(address: str, city: str = None) -> str | None:
     """
     Ищет улицу по названию с использованием API геокодирования.
-    
+
     Args:
         street: Название улицы
         city: Название города (опционально)
-        
+
     Returns:
         Отформатированный адрес или None, если адрес не найден
     """
-    
+
     if address is None or not address.strip() or address.isdigit():
         logger.error("Street name is empty or invalid")
         return None
-    
+
     address = simplify_address(address)
-    
+
     logger.debug(f"Trying to find address using API: '{address}' in '{city}'")
-    
+
     headers = {
-        'User-Agent': 'Armada (contact@example.com)'
+        'User-Agent': 'TransferAPI/1.0 (test@example.com)'
     }
 
     params = {
@@ -48,33 +48,33 @@ def find_address_by_name(address: str, city: str = None) -> str | None:
             headers=headers,
             timeout=10
         )
-        
+
         # Проверяем успешность запроса
         response.raise_for_status()
-        
+
         # Получаем данные из ответа
         data = response.json()
-        
+
         # Проверяем, что в ответе есть данные
         if not data:
             logger.error(f"No results found for '{address}' in '{city}'")
             return None
-        
+
         logger.debug(f"API response: {data}")
-            
+
         # Получаем адрес из первого результата
         address = data[0].get('address')
         if not address:
             return None
-            
+
         road = address.get('road')
         house_number = address.get('house_number')
 
         if road is None or house_number is None:
             return None
-            
+
         result = f"{road}, д. {house_number}"
-        
+
         logger.info(f"Address successfully found : {result}")
         return result
 

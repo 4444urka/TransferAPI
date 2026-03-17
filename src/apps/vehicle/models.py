@@ -22,14 +22,14 @@ def validate_license_plate(value):
     """
     # Приводим к верхнему регистру
     value = value.upper()
-    
+
     # Паттерны для проверки
     # 1. Базовый формат без региона (А111АА)
     base_pattern = r'^[АВЕКМНОРСТУХ]\d{3}[АВЕКМНОРСТУХ]{2}$'
-    
+
     # 2. Формат с регионом (А111АА 77 или А111АА77)
     with_region_pattern = r'^[АВЕКМНОРСТУХ]\d{3}[АВЕКМНОРСТУХ]{2}\s?\d{2,3}$'
-    
+
     if re.match(base_pattern, value):
         # Если номер без региона, добавляем 125
         return f"{value}125"
@@ -56,7 +56,16 @@ class Vehicle(models.Model):
         help_text='Формат: А111АА (поставится 125 регион) или А111АА 77 (указать регион)'
     )
     total_seats = models.IntegerField(
+        null=True, blank=True,
         verbose_name='Количество мест'
+    )
+    rows = models.IntegerField(
+        null=True, blank=True,
+        verbose_name='Количество рядов'
+    )
+    seats_per_row = models.IntegerField(
+        null=True, blank=True,
+        verbose_name='Количество мест в ряду'
     )
     is_comfort = models.BooleanField(
         default=False,
@@ -78,6 +87,12 @@ class Vehicle(models.Model):
 
     def clean(self):
         super().clean()
+
+        if self.rows and self.seats_per_row:
+            self.total_seats = self.rows * self.seats_per_row
+
+        if not self.total_seats:
+            raise ValidationError('Необходимо указать либо количество мест (total_seats), либо количество рядов и мест в ряду (rows, seats_per_row)')
 
         # Проверка минимального и максимального количества мест
         seats_limits = {

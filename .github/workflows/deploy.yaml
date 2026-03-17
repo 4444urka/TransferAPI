@@ -21,17 +21,19 @@ jobs:
           chmod 600 ~/.ssh/known_hosts
         shell: bash
 
-      - name: Install sshpass
-        run: sudo apt-get update && sudo apt-get install -y sshpass
+      - name: Setup SSH Key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.DEV_SERVER_SSH_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
         shell: bash
 
       - name: Deploy to server
         env:
           DEV_USER: ${{ secrets.DEV_SERVER_USER }}
           DEV_HOST: ${{ secrets.DEV_SERVER_HOST }}
-          DEV_SERVER_PASSWORD: ${{ secrets.DEV_SERVER_PASSWORD }}
         run: |
-          sshpass -p "$DEV_SERVER_PASSWORD" ssh -o StrictHostKeyChecking=no $DEV_USER@$DEV_HOST << EOF
+          ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no $DEV_USER@$DEV_HOST << EOF
             cd ~/TransferAPI
             git fetch --all
             git checkout ${{ github.ref_name }}

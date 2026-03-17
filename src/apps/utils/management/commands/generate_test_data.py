@@ -1,72 +1,89 @@
 import random
 from datetime import datetime, timedelta
 from decimal import Decimal
-from django.core.management.base import BaseCommand
-from django.utils import timezone
-from django.db import transaction
-from phonenumber_field.phonenumber import PhoneNumber
+
 from django.contrib.auth.models import Group
+from django.core.management.base import BaseCommand
+from django.db import transaction
+from django.utils import timezone
+from phonenumber_field.phonenumber import PhoneNumber
+
 from apps.auth.models import User
-from apps.trip.models import City, Trip
-from apps.vehicle.models import Vehicle
-from apps.seat.models import Seat, TripSeat
 from apps.booking.models import Booking
 from apps.payment.models import Payment
+from apps.seat.models import Seat, TripSeat
+from apps.trip.models import City, Trip
+from apps.vehicle.models import Vehicle
+
 
 class Command(BaseCommand):
-    help = 'Генерирует тестовые данные для приложения'
+    help = "Генерирует тестовые данные для приложения"
 
     def add_arguments(self, parser):
-        parser.add_argument('--cities', type=int, default=5, help='Количество городов')
-        parser.add_argument('--vehicles', type=int, default=10, help='Количество транспортных средств')
-        parser.add_argument('--trips', type=int, default=20, help='Количество поездок')
-        parser.add_argument('--users', type=int, default=15, help='Количество пользователей')
-        parser.add_argument('--drivers', type=int, default=5, help='Количество водителей')
-        parser.add_argument('--bookings', type=int, default=30, help='Количество бронирований')
-        parser.add_argument('--clean', action='store_true', help='Очистить существующие данные')
+        parser.add_argument("--cities", type=int, default=5, help="Количество городов")
+        parser.add_argument(
+            "--vehicles", type=int, default=10, help="Количество транспортных средств"
+        )
+        parser.add_argument("--trips", type=int, default=20, help="Количество поездок")
+        parser.add_argument(
+            "--users", type=int, default=15, help="Количество пользователей"
+        )
+        parser.add_argument(
+            "--drivers", type=int, default=5, help="Количество водителей"
+        )
+        parser.add_argument(
+            "--bookings", type=int, default=30, help="Количество бронирований"
+        )
+        parser.add_argument(
+            "--clean", action="store_true", help="Очистить существующие данные"
+        )
 
     @transaction.atomic
     def handle(self, *args, **options):
-        if options['clean']:
+        if options["clean"]:
             self.clean_data()
 
-        city_count = options['cities']
-        vehicle_count = options['vehicles']
-        trip_count = options['trips']
-        user_count = options['users']
-        driver_count = options['drivers']
-        booking_count = options['bookings']
+        city_count = options["cities"]
+        vehicle_count = options["vehicles"]
+        trip_count = options["trips"]
+        user_count = options["users"]
+        driver_count = options["drivers"]
+        booking_count = options["bookings"]
 
         # Создаем группу водителей, если её еще нет
-        driver_group, created = Group.objects.get_or_create(name='Водитель')
+        driver_group, created = Group.objects.get_or_create(name="Водитель")
         if created:
             self.stdout.write(self.style.SUCCESS('Создана группа водителей "Водитель"'))
 
         # Создаем города
         cities = self.create_cities(city_count)
-        self.stdout.write(self.style.SUCCESS(f'Создано {len(cities)} городов'))
+        self.stdout.write(self.style.SUCCESS(f"Создано {len(cities)} городов"))
 
         # Создаем транспортные средства
         vehicles = self.create_vehicles(vehicle_count)
-        self.stdout.write(self.style.SUCCESS(f'Создано {len(vehicles)} транспортных средств'))
+        self.stdout.write(
+            self.style.SUCCESS(f"Создано {len(vehicles)} транспортных средств")
+        )
 
         # Создаем обычных пользователей
         users = self.create_users(user_count)
-        self.stdout.write(self.style.SUCCESS(f'Создано {len(users)} пользователей'))
+        self.stdout.write(self.style.SUCCESS(f"Создано {len(users)} пользователей"))
 
         # Создаем водителей
         drivers = self.create_drivers(driver_count, driver_group)
-        self.stdout.write(self.style.SUCCESS(f'Создано {len(drivers)} водителей'))
+        self.stdout.write(self.style.SUCCESS(f"Создано {len(drivers)} водителей"))
 
         # Создаем поездки с водителями
         trips = self.create_trips(trip_count, cities, vehicles, drivers)
-        self.stdout.write(self.style.SUCCESS(f'Создано {len(trips)} поездок'))
+        self.stdout.write(self.style.SUCCESS(f"Создано {len(trips)} поездок"))
 
         # Создаем бронирования
         bookings = self.create_bookings(booking_count, users, trips)
-        self.stdout.write(self.style.SUCCESS(f'Создано {len(bookings)} бронирований'))
+        self.stdout.write(self.style.SUCCESS(f"Создано {len(bookings)} бронирований"))
 
-        self.stdout.write(self.style.SUCCESS('Генерация тестовых данных завершена успешно!'))
+        self.stdout.write(
+            self.style.SUCCESS("Генерация тестовых данных завершена успешно!")
+        )
 
     def clean_data(self):
         # Удаляем данные в обратном порядке зависимостей
@@ -78,18 +95,30 @@ class Command(BaseCommand):
         Vehicle.objects.all().delete()
         City.objects.all().delete()
         User.objects.all().filter(is_superuser=False).delete()
-        self.stdout.write(self.style.SUCCESS('Существующие данные очищены'))
+        self.stdout.write(self.style.SUCCESS("Существующие данные очищены"))
 
     def create_cities(self, count):
         cities = []
         city_names = [
-            'Владивосток', 'Артём', 'Арсеньев', 'Находка', 'Уссурийск',
-            'Партизанск', 'Славянка', 'Трудовое', 'Угловое',
-            'Соловей-ключ', 'Вольно-Надеждинск', 'Вяземский', 'Дальнегорск',
-            'Дальнереченск', 'Лесозаводск', 'Лучегорск'
+            "Владивосток",
+            "Артём",
+            "Арсеньев",
+            "Находка",
+            "Уссурийск",
+            "Партизанск",
+            "Славянка",
+            "Трудовое",
+            "Угловое",
+            "Соловей-ключ",
+            "Вольно-Надеждинск",
+            "Вяземский",
+            "Дальнегорск",
+            "Дальнереченск",
+            "Лесозаводск",
+            "Лучегорск",
         ]
 
-        existing_cities = set(City.objects.values_list('name', flat=True))
+        existing_cities = set(City.objects.values_list("name", flat=True))
         city_names = [name for name in city_names if name not in existing_cities]
 
         # Если городов достаточно уже в базе, вернуть их
@@ -105,40 +134,41 @@ class Command(BaseCommand):
 
     def create_vehicles(self, count):
         vehicles = []
-        vehicle_types = ['car', 'minibus', 'bus', 'premium_car', 'suv', 'van']
+        vehicle_types = ["car", "minibus", "bus", "premium_car", "suv", "van"]
 
-        letters = 'АВЕКМНОРСТУХ'
+        letters = "АВЕКМНОРСТУХ"
 
         for i in range(count):
             # Генерация случайного номера
             letters_part1 = random.choice(letters)
             numbers = f"{random.randint(100, 999)}"
-            letters_part2 = ''.join(random.choices(letters, k=2))
+            letters_part2 = "".join(random.choices(letters, k=2))
             region = random.randint(1, 199)
             license_plate = f"{letters_part1}{numbers}{letters_part2} {region}"
 
             vehicle_type = random.choice(vehicle_types)
             total_seats = 0
 
-            if vehicle_type in ['car', 'premium_car']:
+            if vehicle_type in ["car", "premium_car"]:
                 rows = 2
                 seats_per_row = random.randint(2, 3)
-            elif vehicle_type == 'minibus':
+            elif vehicle_type == "minibus":
                 rows = random.randint(4, 7)
                 seats_per_row = 3
-            elif vehicle_type == 'bus':
+            elif vehicle_type == "bus":
                 rows = random.randint(10, 14)
                 seats_per_row = 4
-            elif vehicle_type in ['suv', 'van']:
+            elif vehicle_type in ["suv", "van"]:
                 rows = 3
                 seats_per_row = random.randint(2, 3)
             else:
                 rows = 2
                 seats_per_row = 2
 
-            is_comfort = vehicle_type == 'premium_car' or random.random() < 0.3
+            is_comfort = vehicle_type == "premium_car" or random.random() < 0.3
             air_conditioning = random.random() < 0.8
             allows_pets = random.random() < 0.4
+            is_right_hand_drive = random.random() < 0.5
 
             vehicle = Vehicle(
                 vehicle_type=vehicle_type,
@@ -147,23 +177,58 @@ class Command(BaseCommand):
                 seats_per_row=seats_per_row,
                 is_comfort=is_comfort,
                 air_conditioning=air_conditioning,
-                allows_pets=allows_pets
+                allows_pets=allows_pets,
+                is_right_hand_drive=is_right_hand_drive,
             )
 
             try:
                 vehicle.save()
                 vehicles.append(vehicle)
             except Exception as e:
-                self.stdout.write(self.style.WARNING(f'Не удалось создать транспорт: {str(e)}'))
+                self.stdout.write(
+                    self.style.WARNING(f"Не удалось создать транспорт: {str(e)}")
+                )
 
         return vehicles
 
     def create_users(self, count):
         users = []
-        first_names = ['Александр', 'Иван', 'Дмитрий', 'Михаил', 'Сергей', 'Андрей', 'Николай',
-                      'Анна', 'Мария', 'Екатерина', 'Елена', 'Ольга', 'Наталья', 'Татьяна', 'Денис', 'Вадим']
-        last_names = ['Иванов', 'Смирнов', 'Кузнецов', 'Попов', 'Васильев', 'Петров', 'Соколов',
-                      'Иванова', 'Смирнова', 'Кузнецова', 'Попова', 'Васильева', 'Петрова', 'Соколова', 'Терещенко', 'Головко']
+        first_names = [
+            "Александр",
+            "Иван",
+            "Дмитрий",
+            "Михаил",
+            "Сергей",
+            "Андрей",
+            "Николай",
+            "Анна",
+            "Мария",
+            "Екатерина",
+            "Елена",
+            "Ольга",
+            "Наталья",
+            "Татьяна",
+            "Денис",
+            "Вадим",
+        ]
+        last_names = [
+            "Иванов",
+            "Смирнов",
+            "Кузнецов",
+            "Попов",
+            "Васильев",
+            "Петров",
+            "Соколов",
+            "Иванова",
+            "Смирнова",
+            "Кузнецова",
+            "Попова",
+            "Васильева",
+            "Петрова",
+            "Соколова",
+            "Терещенко",
+            "Головко",
+        ]
 
         for i in range(count):
             # Генерируем случайный номер телефона
@@ -174,8 +239,8 @@ class Command(BaseCommand):
             first_name = random.choice(first_names)
             last_name = random.choice(last_names)
 
-            if random.random() < 0.5 and last_name.endswith('ов'):
-                last_name = last_name + 'а'
+            if random.random() < 0.5 and last_name.endswith("ов"):
+                last_name = last_name + "а"
 
             user = User(
                 phone_number=phone_number,
@@ -187,14 +252,32 @@ class Command(BaseCommand):
                 user.save()
                 users.append(user)
             except Exception as e:
-                self.stdout.write(self.style.WARNING(f'Не удалось создать пользователя: {str(e)}'))
+                self.stdout.write(
+                    self.style.WARNING(f"Не удалось создать пользователя: {str(e)}")
+                )
 
         return users
 
     def create_drivers(self, count, driver_group):
         drivers = []
-        first_names = ['Алексей', 'Владимир', 'Константин', 'Павел', 'Евгений', 'Виктор', 'Геннадий']
-        last_names = ['Сидоров', 'Морозов', 'Волков', 'Лебедев', 'Козлов', 'Новиков', 'Макаров']
+        first_names = [
+            "Алексей",
+            "Владимир",
+            "Константин",
+            "Павел",
+            "Евгений",
+            "Виктор",
+            "Геннадий",
+        ]
+        last_names = [
+            "Сидоров",
+            "Морозов",
+            "Волков",
+            "Лебедев",
+            "Козлов",
+            "Новиков",
+            "Макаров",
+        ]
 
         for i in range(count):
             # Генерируем случайный номер телефона для водителя
@@ -217,7 +300,9 @@ class Command(BaseCommand):
                 driver.groups.add(driver_group)
                 drivers.append(driver)
             except Exception as e:
-                self.stdout.write(self.style.WARNING(f'Не удалось создать водителя: {str(e)}'))
+                self.stdout.write(
+                    self.style.WARNING(f"Не удалось создать водителя: {str(e)}")
+                )
 
         return drivers
 
@@ -237,20 +322,25 @@ class Command(BaseCommand):
             # Генерируем случайные даты в будущем (от 1 до 30 дней)
             now = timezone.now()
             departure_days = random.randint(-30, 30)
-            departure_time = now + timedelta(days=departure_days, hours=random.randint(0, 23))
+            departure_time = now + timedelta(
+                days=departure_days, hours=random.randint(0, 23)
+            )
 
             # Длительность поездки от 1 до 12 часов
             trip_duration = timedelta(hours=random.randint(1, 12))
             arrival_time = departure_time + trip_duration
 
             # Генерируем случайные цены
-            front_seat_price = Decimal(random.randint(500, 2000))
-            middle_seat_price = Decimal(random.randint(400, 1800))
-            back_seat_price = Decimal(random.randint(300, 1500))
+            economy_seat_price = Decimal(random.randint(500, 1500))
+            comfort_seat_price = economy_seat_price + Decimal(random.randint(200, 1000))
 
             # Доступность для бронирования (Если поездка в прошлом, то не доступна для бронирования)
-            is_bookable = random.random() < 0.9 if departure_time > timezone.now() else False
-            is_active = random.random() < 0.9 if departure_time > timezone.now() else False
+            is_bookable = (
+                random.random() < 0.9 if departure_time > timezone.now() else False
+            )
+            is_active = (
+                random.random() < 0.9 if departure_time > timezone.now() else False
+            )
 
             trip = Trip(
                 vehicle=vehicle,
@@ -259,19 +349,20 @@ class Command(BaseCommand):
                 to_city=to_city,
                 departure_time=departure_time,
                 arrival_time=arrival_time,
-                front_seat_price=front_seat_price,
-                middle_seat_price=middle_seat_price,
-                back_seat_price=back_seat_price,
+                economy_seat_price=economy_seat_price,
+                comfort_seat_price=comfort_seat_price,
                 is_bookable=is_bookable,
                 is_active=is_active,
-                booking_cutoff_minutes=random.choice([15, 30, 45, 60])
+                booking_cutoff_minutes=random.choice([15, 30, 45, 60]),
             )
 
             try:
                 trip.save()
                 trips.append(trip)
             except Exception as e:
-                self.stdout.write(self.style.WARNING(f'Не удалось создать поездку: {str(e)}'))
+                self.stdout.write(
+                    self.style.WARNING(f"Не удалось создать поездку: {str(e)}")
+                )
 
         return trips
 
@@ -281,18 +372,32 @@ class Command(BaseCommand):
         valid_trips = [trip for trip in trips if trip.is_bookable]
 
         if not valid_trips:
-            self.stdout.write(self.style.WARNING('Нет доступных поездок для бронирования'))
+            self.stdout.write(
+                self.style.WARNING("Нет доступных поездок для бронирования")
+            )
             return bookings
 
-        for i in range(min(count, len(valid_trips) * 3)):  # Ограничиваем количество бронирований
+        for i in range(
+            min(count, len(valid_trips) * 3)
+        ):  # Ограничиваем количество бронирований
             user = random.choice(users)
             trip = random.choice(valid_trips)
 
             # Реалистичные улицы (популярные названия, которые часто встречаются в городах Приморского края)
             streets = [
-                'Ленина', 'Кирова', 'Фрунзе', 'Советская', 'Комсомольская',
-                'Светланская', 'Океанский проспект', 'Пушкина', 'Гагарина',
-                'Мира', 'Краснознаменная', 'Амурская', 'Суханова'
+                "Ленина",
+                "Кирова",
+                "Фрунзе",
+                "Советская",
+                "Комсомольская",
+                "Светланская",
+                "Океанский проспект",
+                "Пушкина",
+                "Гагарина",
+                "Мира",
+                "Краснознаменная",
+                "Амурская",
+                "Суханова",
             ]
 
             # Случайные адреса
@@ -305,14 +410,16 @@ class Command(BaseCommand):
                 trip=trip,
                 pickup_location=pickup_location,
                 dropoff_location=dropoff_location,
-                is_active=True
+                is_active=True,
             )
 
             try:
                 booking.save()
 
                 # Выбираем случайные свободные места для бронирования
-                available_trip_seats = TripSeat.objects.filter(trip=trip, is_booked=False)
+                available_trip_seats = TripSeat.objects.filter(
+                    trip=trip, is_booked=False
+                )
 
                 if available_trip_seats.exists():
                     # Выбираем случайное количество мест (от 1 до min(3, доступных мест))
@@ -330,9 +437,13 @@ class Command(BaseCommand):
                     bookings.append(booking)
                 else:
                     booking.delete()
-                    self.stdout.write(self.style.WARNING(f'Нет свободных мест для поездки {trip}'))
+                    self.stdout.write(
+                        self.style.WARNING(f"Нет свободных мест для поездки {trip}")
+                    )
 
             except Exception as e:
-                self.stdout.write(self.style.WARNING(f'Не удалось создать бронирование: {str(e)}'))
+                self.stdout.write(
+                    self.style.WARNING(f"Не удалось создать бронирование: {str(e)}")
+                )
 
         return bookings

@@ -202,11 +202,11 @@ class VehicleModelTest(TestCase):
 
         # Проверяем типы мест
         first_bus_seat = bus_seats.order_by('seat_number').first()
-        self.assertEqual(first_bus_seat.price_zone, 'front')
+        self.assertEqual(first_bus_seat.seat_class, 'economy')
 
         other_bus_seats = bus_seats.exclude(id=first_bus_seat.id)
         for seat in other_bus_seats:
-            self.assertEqual(seat.price_zone, 'back')
+            self.assertEqual(seat.seat_class, 'economy')
 
     def test_vehicle_update_seats(self):
         """Тест обновления мест при изменении total_seats"""
@@ -245,9 +245,8 @@ class VehicleModelTest(TestCase):
             to_city=self.spb,
             departure_time=timezone.now() + timedelta(days=1),
             arrival_time=timezone.now() + timedelta(days=1, hours=5),
-            front_seat_price=Decimal('1000.00'),
-            middle_seat_price=Decimal('1000.00'),
-            back_seat_price=Decimal('1000.00')
+            economy_seat_price=Decimal('1000.00'),
+            comfort_seat_price=Decimal('1000.00'),
         )
 
         # Бронируем последнее место
@@ -290,9 +289,8 @@ class VehicleModelTest(TestCase):
             to_city=self.spb,
             departure_time=timezone.now() + timedelta(days=1),
             arrival_time=timezone.now() + timedelta(days=1, hours=3),
-            front_seat_price=Decimal('500.00'),
-            middle_seat_price=Decimal('500.00'),
-            back_seat_price=Decimal('500.00')
+            economy_seat_price=Decimal('500.00'),
+            comfort_seat_price=Decimal('500.00'),
         )
 
         # Проверяем, что для каждого места создан TripSeat
@@ -587,9 +585,8 @@ class VehicleAPITest(APITestCase):
             to_city=to_city,
             departure_time=trip_start,
             arrival_time=trip_end,
-            front_seat_price=Decimal('1000.00'),
-            middle_seat_price=Decimal('1000.00'),
-            back_seat_price=Decimal('1000.00')
+            economy_seat_price=Decimal('1000.00'),
+            comfort_seat_price=Decimal('1000.00'),
         )
 
         # Убираем микросекунды и не добавляем «Z»

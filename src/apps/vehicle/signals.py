@@ -12,32 +12,49 @@ def manage_seats(sender, instance, created, **kwargs):
     Функция автоматически создаёт или обновляет места при создании или изменении транспортного средства
     """
     # Получаем текущие места для этого транспортного средства
-    current_seats = Seat.objects.filter(vehicle=instance).order_by('seat_number')
+    current_seats = Seat.objects.filter(vehicle=instance).order_by("seat_number")
     current_seat_count = current_seats.count()
 
     # Если создано новое транспортное средство
     if created:
         # Создаем места с нуля
-        Seat.objects.create(vehicle=instance, seat_number=1, price_zone="front")
-        for i in range(instance.total_seats - 1):
-            Seat.objects.create(vehicle=instance, seat_number=i + 2, price_zone="back")
+        for i in range(instance.total_seats):
+            Seat.objects.create(
+                vehicle=instance, seat_number=i + 1, seat_class="economy"
+            )
 
         # Также нужно создать TripSeat для каждой поездки с этим транспортным средством
         trips = Trip.objects.filter(vehicle=instance)
         for trip in trips:
             for seat in Seat.objects.filter(vehicle=instance):
-                TripSeat.objects.create(trip=trip, seat=seat)
+                cost = (
+                    trip.comfort_seat_price
+                    if seat.seat_class == "comfort"
+                    else trip.economy_seat_price
+                )
+                TripSeat.objects.create(
+                    trip=trip, seat=seat, cost=cost, seat_class=seat.seat_class
+                )
     else:
         # Проверяем изменение количества мест
         if current_seat_count < instance.total_seats:
             # Нужно добавить места
             for i in range(current_seat_count + 1, instance.total_seats + 1):
-                seat = Seat.objects.create(vehicle=instance, seat_number=i, price_zone="back")
+                seat = Seat.objects.create(
+                    vehicle=instance, seat_number=i, seat_class="economy"
+                )
 
                 # Создать TripSeat для существующих поездок
                 trips = Trip.objects.filter(vehicle=instance)
                 for trip in trips:
-                    TripSeat.objects.create(trip=trip, seat=seat)
+                    cost = (
+                        trip.comfort_seat_price
+                        if seat.seat_class == "comfort"
+                        else trip.economy_seat_price
+                    )
+                    TripSeat.objects.create(
+                        trip=trip, seat=seat, cost=cost, seat_class=seat.seat_class
+                    )
 
         elif current_seat_count > instance.total_seats:
             # Нужно удалить лишние места
@@ -45,15 +62,14 @@ def manage_seats(sender, instance, created, **kwargs):
 
             # Проверяем, есть ли забронированные места среди удаляемых
             booked_seats_exist = TripSeat.objects.filter(
-                seat__in=seats_to_remove,
-                is_booked=True
+                seat__in=seats_to_remove, is_booked=True
             ).exists()
 
             if booked_seats_exist:
                 # Есть забронированные места, которые нельзя удалить
                 # Откатываем изменение total_seats
                 instance.total_seats = current_seat_count
-                instance.save(update_fields=['total_seats'])
+                instance.save(update_fields=["total_seats"])
                 return
 
             # Удаляем места, начиная с конца

@@ -40,7 +40,7 @@ class TripViewSet(viewsets.ModelViewSet):
     filterset_class = TripFilter
     search_fields = ['from_city__name', 'to_city__name']
     permission_classes = [IsAuthenticated, HasTripPermission]
-    ordering_fields = ['departure_time', 'arrival_time', 'front_seat_price', 'middle_seat_price', 'back_seat_price']
+    ordering_fields = ['departure_time', 'arrival_time', 'economy_seat_price', 'comfort_seat_price', 'back_seat_price']
     ordering = ['departure_time']
 
     @swagger_auto_schema(

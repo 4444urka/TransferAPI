@@ -23,9 +23,6 @@ class MockResponse:
 def mocked_requests_get(*args, **kwargs):
     return MockResponse([{'address': {'road': 'Тестовая', 'house_number': '10'}}])
 
-patcher = mock.patch('requests.get', side_effect=mocked_requests_get)
-patcher.start()
-
 from apps.booking.models import Booking, Payment
 from apps.trip.models import Trip, City
 from apps.vehicle.models import Vehicle
@@ -33,11 +30,28 @@ from apps.seat.models import TripSeat, Seat
 
 User = get_user_model()
 
-class BookingPermissionsTest(APITestCase):
+
+class RequestsGetPatchedAPITestCase(APITestCase):
+    """
+    Базовый тестовый класс, который мокает requests.get для каждого теста
+    и корректно останавливает patch после выполнения теста.
+    """
+
+    def setUp(self):
+        super().setUp()
+        self._requests_get_patcher = mock.patch(
+            'requests.get',
+            side_effect=mocked_requests_get,
+        )
+        self._mock_requests_get = self._requests_get_patcher.start()
+        self.addCleanup(self._requests_get_patcher.stop)
+
+class BookingPermissionsTest(RequestsGetPatchedAPITestCase):
     """Тесты для проверки разрешений на бронирования"""
 
     def setUp(self):
         """Настройка тестовых данных"""
+        super().setUp()
         # Создаем группы
         self.admin_group = Group.objects.create(name='admin')
         self.manager_group = Group.objects.create(name='manager')
@@ -378,7 +392,7 @@ class BookingPermissionsTest(APITestCase):
             response = self.client.get(self.booking2_detail_url)
             self.assertIn(response.status_code, [status.HTTP_403_FORBIDDEN, status.HTTP_404_NOT_FOUND])
 
-class BookingFilterTest(APITestCase):
+class BookingFilterTest(RequestsGetPatchedAPITestCase):
     """Тесты для проверки фильтрации бронирований"""
 
     def setUp(self):
@@ -581,7 +595,7 @@ class BookingFilterTest(APITestCase):
             for booking in response.data['results']:
                 self.assertEqual(booking['trip']['to_city']['name'], 'Санкт-Петербург')
 
-class BookingAPITest(APITestCase):
+class BookingAPITest(RequestsGetPatchedAPITestCase):
     """
     Проверка эндпоинтов
     """

@@ -88,8 +88,25 @@ class Seat(models.Model):
                 )
 
     def save(self, *args, **kwargs):
+        is_new = self.pk is None
+        old_seat_class = None
+        if not is_new:
+            try:
+                old_seat_class = Seat.objects.get(pk=self.pk).seat_class
+            except Seat.DoesNotExist:
+                pass
+
         self.full_clean()
         super().save(*args, **kwargs)
+
+        if not is_new and old_seat_class != self.seat_class:
+            for trip_seat in self.trip_seats.select_related("trip").all():
+                trip_seat.seat_class = self.seat_class
+                if self.seat_class == "comfort":
+                    trip_seat.cost = trip_seat.trip.comfort_seat_price
+                elif self.seat_class == "economy":
+                    trip_seat.cost = trip_seat.trip.economy_seat_price
+                trip_seat.save(update_fields=["seat_class", "cost"])
 
     def delete(self, *args, **kwargs):
         """

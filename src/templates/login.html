@@ -117,11 +117,14 @@
           refresh: json.refresh
         }));
       } catch (err) {
-        const errorDiv = document.createElement("div");
-        errorDiv.textContent = "❌ Ошибка: " + err.message;
-        errorDiv.className = "error-message";
         const form = document.getElementById("login-form");
-        form.parentNode.insertBefore(errorDiv, form.nextSibling);
+        let errorDiv = form.parentNode.querySelector(".error-message");
+        if (!errorDiv) {
+          errorDiv = document.createElement("div");
+          errorDiv.className = "error-message";
+          form.parentNode.insertBefore(errorDiv, form.nextSibling);
+        }
+        errorDiv.textContent = "❌ Ошибка: " + err.message;
       }
     });
 

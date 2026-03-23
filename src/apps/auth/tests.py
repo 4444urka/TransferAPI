@@ -1,6 +1,5 @@
-from django.contrib.auth.models import Group, Permission
-from django.contrib.contenttypes.models import ContentType
-from rest_framework.test import APITestCase, APIClient
+
+from rest_framework.test import APITestCase
 from rest_framework import status
 from django.urls import reverse
 from apps.auth.models import User
@@ -132,12 +131,12 @@ class UserListTest(APITestCase):
         self.admin_token = self.client.post(reverse('token_obtain_pair'), {
             'phone_number': self.admin_phone,
             'password': self.password
-        }, format='json').data.get('access')
+        }, format='json') .data.get('access')
 
         self.user_token = self.client.post(reverse('token_obtain_pair'), {
             'phone_number': self.user_phone,
             'password': self.password
-        }, format='json').data.get('access')
+        }, format='json') .data.get('access')
 
         self.users_url = "/auth/users/"
 
@@ -154,7 +153,7 @@ class UserListTest(APITestCase):
 
         # Если получили 200, проверяем, что пользователь видит только себя
         if response.status_code == status.HTTP_200_OK:
-            users = response.data.get('results', response.data)
+            users = response .data.get('results', response.data)
             self.assertIsInstance(users, list)
             # Обычный пользователь должен видеть только свою запись
             self.assertEqual(len(users), 1)
@@ -163,7 +162,7 @@ class UserListTest(APITestCase):
     def test_users_route_admin_user(self):
         self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.admin_token}')
         response = self.client.get(self.users_url)
-        users = response.data.get('results', response.data)
+        users = response .data.get('results', response.data)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertIsInstance(users, list)
         # Администратор должен видеть как минимум две записи (его и обычного пользователя)
@@ -204,12 +203,12 @@ class UserDetailTest(APITestCase):
         self.admin_token = self.client.post(reverse('token_obtain_pair'), {
             'phone_number': self.admin_phone,
             'password': self.password
-        }, format='json').data.get('access')
+        }, format='json') .data.get('access')
 
         self.user_token = self.client.post(reverse('token_obtain_pair'), {
             'phone_number': self.user_phone,
             'password': self.password
-        }, format='json').data.get('access')
+        }, format='json') .data.get('access')
 
         self.user_detail_url = "/auth/users/get_user_info/"
 
@@ -389,7 +388,7 @@ class UserUpdateTests(APITestCase):
             'chat_id': '3333',
             'password': self.user.password,
         }
-        response = self.client.post(admin_change_url, data)
+        _ = self.client.post(admin_change_url, data)
         self.user.refresh_from_db()
         self.assertEqual(self.user.phone_number, original_phone)
         self.assertEqual(self.user.first_name, 'AdminEdited')
@@ -434,8 +433,8 @@ class UserUpdateTest(APITestCase):
             {"phone_number": self.user_phone, "password": self.password},
             format='json'
         )
-        self.admin_token = admin_response.data.get('access')
-        self.user_token = user_response.data.get('access')
+        self.admin_token = admin_response .data.get('access')
+        self.user_token = user_response .data.get('access')
 
         # URL для обновления обычного пользователя (его данные)
         self.update_user_url = reverse('user_update', args=[self.user.id])
@@ -461,9 +460,9 @@ class UserUpdateTest(APITestCase):
         response = self.client.patch(self.update_user_url, data=update_data, format='json')
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         # Проверяем, что данные обновились
-        self.assertEqual(response.data.get("first_name"), "UpdatedName")
-        self.assertEqual(response.data.get("last_name"), "UpdatedLast")
-        self.assertEqual(response.data.get("chat_id"), "123456")
+        self.assertEqual(response .data.get("first_name"), "UpdatedName")
+        self.assertEqual(response .data.get("last_name"), "UpdatedLast")
+        self.assertEqual(response .data.get("chat_id"), "123456")
 
     def test_normal_user_update_extra_fields_not_allowed(self):
         """
@@ -500,8 +499,8 @@ class UserUpdateTest(APITestCase):
         update_data = {"first_name": "AdminUpdated", "last_name": "AdminLast", "chat_id": "55555"}
         response = self.client.patch(self.update_user_url, data=update_data, format='json')
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.data.get("first_name"), "AdminUpdated")
-        self.assertEqual(response.data.get("chat_id"), "55555")
+        self.assertEqual(response .data.get("first_name"), "AdminUpdated")
+        self.assertEqual(response .data.get("chat_id"), "55555")
 
 
 class FeedbackCreateTest(APITestCase):
@@ -528,7 +527,7 @@ class FeedbackCreateTest(APITestCase):
             {"phone_number": self.user_phone, "password": self.password},
             format='json'
         )
-        self.user_token = response.data.get('access')
+        self.user_token = response .data.get('access')
 
         self.feedback_url = reverse('feedback_create')
 
@@ -540,8 +539,8 @@ class FeedbackCreateTest(APITestCase):
         }
         response = self.client.post(self.feedback_url, data=data, format='json')
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        self.assertEqual(response.data.get("chat_id"), "123456789")
-        self.assertIsNone(response.data.get("user_id"))
+        self.assertEqual(response .data.get("chat_id"), "123456789")
+        self.assertIsNone(response .data.get("user_id"))
 
     def test_create_feedback_authenticated(self):
         """Аутентифицированный пользователь может отправить отзыв."""
@@ -552,8 +551,8 @@ class FeedbackCreateTest(APITestCase):
         }
         response = self.client.post(self.feedback_url, data=data, format='json')
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        self.assertEqual(response.data.get("chat_id"), "123456789")
-        self.assertEqual(response.data.get("user_id"), self.user.id)
+        self.assertEqual(response .data.get("chat_id"), "123456789")
+        self.assertEqual(response .data.get("user_id"), self.user.id)
 
     def test_create_feedback_invalid_data(self):
         """Отправка отзыва с некорректными данными возвращает ошибку."""
@@ -614,14 +613,14 @@ class UserDeleteTest(APITestCase):
             {"phone_number": self.user_phone, "password": self.password},
             format='json'
         )
-        self.user_token = user_response.data.get('access')
+        self.user_token = user_response .data.get('access')
 
         admin_response = self.client.post(
             reverse('token_obtain_pair'),
             {"phone_number": self.admin_phone, "password": self.password},
             format='json'
         )
-        self.admin_token = admin_response.data.get('access')
+        self.admin_token = admin_response .data.get('access')
 
         self.delete_url = reverse('user_delete')
 

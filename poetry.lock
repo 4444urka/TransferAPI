@@ -402,6 +402,21 @@ redis = ">=3,<4.0.0 || >4.0.0,<4.0.1 || >4.0.1"
 hiredis = ["redis[hiredis] (>=3,!=4.0.0,!=4.0.1)"]
 
 [[package]]
+name = "django-types"
+version = "0.23.0"
+description = "Type stubs for Django"
+optional = false
+python-versions = ">=3.10"
+groups = ["dev"]
+files = [
+    {file = "django_types-0.23.0-py3-none-any.whl", hash = "sha256:0727b13ae810c4b1f14eeac9872834ac928c99dc76584ea7c23afc4461e049dd"},
+    {file = "django_types-0.23.0.tar.gz", hash = "sha256:f97fb746166fb15a5f40e470a1fd7a58226349aac9e0a9cb8ae81deb14d94fd0"},
+]
+
+[package.dependencies]
+types-psycopg2 = ">=2.9.21.13"
+
+[[package]]
 name = "djangorestframework"
 version = "3.15.2"
 description = "Web APIs for Django, made easy."
@@ -440,6 +455,18 @@ doc = ["Sphinx (>=1.6.5,<2)", "sphinx_rtd_theme (>=0.1.9)"]
 lint = ["flake8", "isort", "pep8"]
 python-jose = ["python-jose (==3.3.0)"]
 test = ["cryptography", "freezegun", "pytest", "pytest-cov", "pytest-django", "pytest-xdist", "tox"]
+
+[[package]]
+name = "djangorestframework-types"
+version = "0.9.0"
+description = "Type stubs for Django Rest Framework"
+optional = false
+python-versions = "<4.0,>=3.8"
+groups = ["dev"]
+files = [
+    {file = "djangorestframework_types-0.9.0-py3-none-any.whl", hash = "sha256:5e4258fe43774d0a3d018780170bd702bf615407fe244453ea5ec6e6676b98c4"},
+    {file = "djangorestframework_types-0.9.0.tar.gz", hash = "sha256:aa6b27fbdab5ff4ab1dfa5376f3b6ec45713ce48dbcdd4226bf3e1410f0deaca"},
+]
 
 [[package]]
 name = "drf-yasg"
@@ -1021,6 +1048,18 @@ files = [
 [package.extras]
 dev = ["build", "hatch"]
 doc = ["sphinx"]
+
+[[package]]
+name = "types-psycopg2"
+version = "2.9.21.20260223"
+description = "Typing stubs for psycopg2"
+optional = false
+python-versions = ">=3.10"
+groups = ["dev"]
+files = [
+    {file = "types_psycopg2-2.9.21.20260223-py3-none-any.whl", hash = "sha256:c6228ade72d813b0624f4c03feeb89471950ac27cd0506b5debed6f053086bc8"},
+    {file = "types_psycopg2-2.9.21.20260223.tar.gz", hash = "sha256:78ed70de2e56bc6b5c26c8c1da8e9af54e49fdc3c94d1504609f3519e2b84f02"},
+]
 
 [[package]]
 name = "tzdata"

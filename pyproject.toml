@@ -30,3 +30,21 @@ whitenoise = "^6.12.0"
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
+[dependency-groups]
+dev = [
+    "django-types (>=0.23.0,<0.24.0)",
+    "djangorestframework-types (>=0.9.0,<0.10.0)"
+]
+
+[tool.basedpyright]
+typeCheckingMode = "basic"
+reportOptionalMemberAccess = false
+reportGeneralTypeIssues = false
+reportUnknownMemberType = false
+reportAttributeAccessIssue = false
+reportArgumentType = false
+reportIndexIssue = false
+reportOperatorIssue = false
+reportReturnType = false
+reportOptionalOperand = false
+reportCallIssue = false

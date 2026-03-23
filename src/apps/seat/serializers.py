@@ -1,6 +1,5 @@
 from rest_framework import serializers
 
-from apps.trip.serializers import TripDetailSerializer
 from apps.vehicle.serializers import VehicleSerializer
 
 from .models import Seat, TripSeat

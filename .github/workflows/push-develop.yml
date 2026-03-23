@@ -65,28 +65,54 @@ jobs:
         run: docker compose down
 
   deploy:
-    name: Deploy to Dev Server
+    name: Deploy to Server
     runs-on: ubuntu-latest
-    needs: test
-
     steps:
-      - name: Deploy to development server via SSH
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.DEV_SERVER_HOST }}
-          username: ${{ secrets.DEV_SERVER_USER }}
-          key: ${{ secrets.DEV_SERVER_SSH_KEY }}
-          script: |
-            # Переход в директорию проекта на дев-сервере
-            cd ${{ secrets.DEV_PROJECT_PATH }}
+      - name: Checkout repository
+        uses: actions/checkout@v3
 
-            # Получение последних изменений из ветки develop
-            git fetch origin develop
-            git reset --hard origin/develop
+      - name: Add server to known_hosts
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -p ${{ secrets.DEV_SERVER_PORT || '22' }} -H ${{ secrets.DEV_SERVER_HOST }} >> ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+        shell: bash
 
-            # Пересборка и перезапуск контейнеров
-            docker compose -f docker-compose.yml down
-            docker compose -f docker-compose.yml up -d --build
+      - name: Setup SSH Key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.DEV_SERVER_SSH_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+        shell: bash
 
-            # Применение миграций
-            docker compose exec -T web python src/manage.py migrate
+      - name: Deploy to server
+        env:
+          DEV_USER: ${{ secrets.DEV_SERVER_USER }}
+          DEV_HOST: ${{ secrets.DEV_SERVER_HOST }}
+          DEV_PORT: ${{ secrets.DEV_SERVER_PORT || '22' }}
+        run: |
+          ssh -i ~/.ssh/id_rsa -p $DEV_PORT -o StrictHostKeyChecking=no $DEV_USER@$DEV_HOST << EOF
+            cd ~/TransferAPI
+            git fetch --all
+            git checkout ${{ github.ref_name }}
+            git pull origin ${{ github.ref_name }}
+            echo "Pulled latest changes from ${{ github.ref_name }}"
+
+            echo "Building Docker containers..."
+            docker compose -f docker-compose.prod.yml build
+
+            echo "Starting Docker containers..."
+            docker compose -f docker-compose.prod.yml up -d
+
+            echo "Making migrations..."
+            docker compose -f docker-compose.prod.yml exec -T web python src/manage.py makemigrations
+
+            echo "Applying migrations..."
+            docker compose -f docker-compose.prod.yml exec -T web python src/manage.py migrate
+
+            echo "Cleaning up old Docker images..."
+            docker image prune -af
+
+            echo "Deployment to server finished."
+          EOF
+        shell: bash

@@ -93,7 +93,7 @@ class VehicleModelTest(TestCase):
             air_conditioning=True,
             allows_pets=False
         )
-        
+
         # Создаем города для тестов с поездками
         self.moscow = City.objects.create(name='Москва')
         self.spb = City.objects.create(name='Санкт-Петербург')
@@ -171,6 +171,26 @@ class VehicleModelTest(TestCase):
         with self.assertRaises(ValidationError):
             vehicle.full_clean()
 
+    def test_rows_and_seats_per_row_calculation(self):
+        """Тест расчета total_seats на основе рядов и мест в ряду"""
+        vehicle = Vehicle(
+            vehicle_type='bus',
+            license_plate='Р444РР',
+            rows=10,
+            seats_per_row=4
+        )
+        vehicle.full_clean()
+        self.assertEqual(vehicle.total_seats, 40)
+
+    def test_missing_seats_info(self):
+        """Тест ошибки при отсутствии информации о местах"""
+        vehicle = Vehicle(
+            vehicle_type='bus',
+            license_plate='Р555РР'
+        )
+        with self.assertRaises(ValidationError):
+            vehicle.full_clean()
+
     def test_seats_created_automatically(self):
         """Тест автоматического создания мест при создании транспортного средства"""
         # Проверяем, что для каждого транспорта созданы места
@@ -182,11 +202,11 @@ class VehicleModelTest(TestCase):
 
         # Проверяем типы мест
         first_bus_seat = bus_seats.order_by('seat_number').first()
-        self.assertEqual(first_bus_seat.price_zone, 'front')
+        self.assertEqual(first_bus_seat.seat_class, 'economy')
 
         other_bus_seats = bus_seats.exclude(id=first_bus_seat.id)
         for seat in other_bus_seats:
-            self.assertEqual(seat.price_zone, 'back')
+            self.assertEqual(seat.seat_class, 'economy')
 
     def test_vehicle_update_seats(self):
         """Тест обновления мест при изменении total_seats"""
@@ -217,7 +237,7 @@ class VehicleModelTest(TestCase):
         driver = User.objects.create_user('+79111111115', 'driverpass')
         driver_group, _ = Group.objects.get_or_create(name='Водитель')
         driver.groups.add(driver_group)
-        
+
         trip = Trip.objects.create(
             vehicle=self.bus,
             driver=driver,
@@ -225,9 +245,8 @@ class VehicleModelTest(TestCase):
             to_city=self.spb,
             departure_time=timezone.now() + timedelta(days=1),
             arrival_time=timezone.now() + timedelta(days=1, hours=5),
-            front_seat_price=Decimal('1000.00'),
-            middle_seat_price=Decimal('1000.00'),
-            back_seat_price=Decimal('1000.00')
+            economy_seat_price=Decimal('1000.00'),
+            comfort_seat_price=Decimal('1000.00'),
         )
 
         # Бронируем последнее место
@@ -262,7 +281,7 @@ class VehicleModelTest(TestCase):
         driver = User.objects.create_user('+79111111116', 'driverpass')
         driver_group, _ = Group.objects.get_or_create(name='Водитель')
         driver.groups.add(driver_group)
-        
+
         trip = Trip.objects.create(
             vehicle=self.car,
             driver=driver,
@@ -270,9 +289,8 @@ class VehicleModelTest(TestCase):
             to_city=self.spb,
             departure_time=timezone.now() + timedelta(days=1),
             arrival_time=timezone.now() + timedelta(days=1, hours=3),
-            front_seat_price=Decimal('500.00'),
-            middle_seat_price=Decimal('500.00'),
-            back_seat_price=Decimal('500.00')
+            economy_seat_price=Decimal('500.00'),
+            comfort_seat_price=Decimal('500.00'),
         )
 
         # Проверяем, что для каждого места создан TripSeat
@@ -567,9 +585,8 @@ class VehicleAPITest(APITestCase):
             to_city=to_city,
             departure_time=trip_start,
             arrival_time=trip_end,
-            front_seat_price=Decimal('1000.00'),
-            middle_seat_price=Decimal('1000.00'),
-            back_seat_price=Decimal('1000.00')
+            economy_seat_price=Decimal('1000.00'),
+            comfort_seat_price=Decimal('1000.00'),
         )
 
         # Убираем микросекунды и не добавляем «Z»

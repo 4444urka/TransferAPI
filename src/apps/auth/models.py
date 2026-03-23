@@ -1,6 +1,8 @@
 from django.contrib.auth.models import AbstractBaseUser, Group, Permission
 from django.db import models
 from phonenumber_field.modelfields import PhoneNumberField
+from django.core.validators import MaxLengthValidator
+
 
 from .managers import UserManager
 
@@ -70,3 +72,41 @@ class User(AbstractBaseUser):
         verbose_name = "Пользователь"
         verbose_name_plural = "Пользователи"
         ordering = ['phone_number']
+
+
+class Feedback(models.Model):
+    """Модель для хранения отзывов пользователей и анонимных отзывов."""
+    
+    user = models.ForeignKey(
+        User, 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        blank=True, 
+        related_name='feedbacks', 
+        verbose_name='Пользователь'
+    )
+    chat_id = models.CharField(
+        max_length=255, 
+        null=False, 
+        blank=False, 
+        verbose_name='Телеграм Чат ID'
+    )
+    message = models.TextField(
+        verbose_name='Отзыв',
+        validators=[MaxLengthValidator(1000)],
+        help_text='Максимальная длина отзыва - 1000 символов.'
+        )
+    message_datetime = models.DateTimeField(
+        auto_now_add=True, 
+        verbose_name='Дата и время написания отзыва'
+    )
+
+    class Meta:
+        verbose_name = "Отзыв"
+        verbose_name_plural = "Отзывы"
+        ordering = ['-message_datetime']
+
+    def __str__(self):
+        if self.user:
+            return f"Отзыв от {self.user.phone_number} - {self.message[:50]}..."
+        return f"Анонимный отзыв (Chat ID: {self.chat_id}) - {self.message[:50]}..."

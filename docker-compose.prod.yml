@@ -1,14 +1,13 @@
 services:
   db:
     image: postgres:17
-    ports:
-      - "5432:5432"
+    restart: always
     volumes:
       - postgres_data:/var/lib/postgresql/data
     environment:
-      POSTGRES_DB: transfer_db
-      POSTGRES_USER: busser_killer
-      POSTGRES_PASSWORD: "MbU?rU9&^FfBWrv&s=tw"
+      POSTGRES_DB: ${DB_NAME:-transfer_db}
+      POSTGRES_USER: ${DB_USER:-busser_killer}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-MbU?rU9&^FfBWrv&s=tw}
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U busser_killer -d transfer_db"]
       interval: 10s
@@ -18,8 +17,7 @@ services:
 
   redis:
     image: redis:latest
-    ports:
-      - "6379:6379"
+    restart: always
     volumes:
       - redis_data:/data
     healthcheck:
@@ -32,10 +30,10 @@ services:
   web:
     build:
       context: .
-      dockerfile: Dockerfile
-    command: python src/manage.py runserver 0.0.0.0:8000
-    volumes:
-      - .:/app
+      dockerfile: Dockerfile.prod
+    restart: always
+    env_file:
+      - .env
     ports:
       - "${WEB_PORT:-8000}:8000"
     depends_on:
@@ -51,13 +49,14 @@ services:
   bot:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.prod
+    restart: always
     container_name: telegram_bot
     command: python src/bot/main.py
+    env_file:
+      - .env
     environment:
       - PYTHONPATH=/app/src
-    volumes:
-      - .:/app
     depends_on:
       - web
     healthcheck:
@@ -74,10 +73,13 @@ services:
       start_period: 20s
 
   celery:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile.prod
+    restart: always
     command: celery -A config worker --loglevel=info
-    volumes:
-      - .:/app
+    env_file:
+      - .env
     environment:
       - PYTHONPATH=/app/src
     depends_on:
@@ -92,12 +94,10 @@ services:
 
   rabbitmq:
     image: rabbitmq:3-management
-    ports:
-      - "5672:5672"
-      - "15672:15672"
+    restart: always
     environment:
-      RABBITMQ_DEFAULT_USER: busser_killer
-      RABBITMQ_DEFAULT_PASS: password
+      RABBITMQ_DEFAULT_USER: ${DB_USER:-busser_killer}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASS:-password}
     healthcheck:
       test: ["CMD", "rabbitmqctl", "status"]
       interval: 30s
@@ -106,10 +106,13 @@ services:
       start_period: 30s
 
   celery-beat:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile.prod
+    restart: always
     command: celery -A config beat
-    volumes:
-      - .:/app
+    env_file:
+      - .env
     environment:
       - PYTHONPATH=/app/src
     depends_on:

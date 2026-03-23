@@ -77,7 +77,7 @@ class SeatViewSet(mixins.ListModelMixin,
         request_body=openapi.Schema(
             type=openapi.TYPE_OBJECT,
             properties={
-                'price_zone': openapi.Schema(type=openapi.TYPE_STRING, description='Тип места (front, middle, back)')
+                'seat_class': openapi.Schema(type=openapi.TYPE_STRING, description='Тип места (front, middle, back)')
             }
         )
     )

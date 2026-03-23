@@ -2,7 +2,7 @@ from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.contrib.auth.forms import UserChangeForm, UserCreationForm
 from django import forms
-from apps.auth.models import User
+from apps.auth.models import User, Feedback
 from apps.auth.services import UserService
 from rest_framework import serializers
 from django.core.exceptions import ValidationError as DjangoValidationError
@@ -61,4 +61,12 @@ class CustomUserAdmin(BaseUserAdmin):
     search_fields = ('phone_number', 'first_name', 'last_name')
     ordering = ('phone_number',)
 
+class FeedbackAdmin(admin.ModelAdmin):
+    """Админка для отзывов пользователей."""
+    list_display = ('id', 'user', 'chat_id', 'message', 'message_datetime')
+    list_filter = ('message_datetime', 'user')
+    search_fields = ('message', 'chat_id', 'user__phone_number')
+    ordering = ('-message_datetime',)
+
 admin.site.register(User, CustomUserAdmin)
+admin.site.register(Feedback, FeedbackAdmin)

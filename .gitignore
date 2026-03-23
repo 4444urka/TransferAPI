@@ -18,3 +18,4 @@ celerybeat-schedule-wal
 .DS_Store
 
 .cursor
+.env

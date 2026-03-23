@@ -2,17 +2,21 @@ import logging
 from typing import List, Optional
 
 from django.core.exceptions import ValidationError
-from ..models import Seat
+
 from apps.vehicle.models import Vehicle
+
+from ..models import Seat
+
 
 class SeatService:
     """
     Сервис для работы с моделью Seat.
     Предоставляет методы для выполнения операций с местами.
     """
+
     def __init__(self):
         self.logger = logging.getLogger(__name__)
-    
+
     def get_all_seats(self) -> List[Seat]:
         """
         Получить список всех мест.
@@ -45,23 +49,25 @@ class SeatService:
     def update_seat(self, seat_id: int, data: dict) -> Seat:
         """
         Обновить данные места.
-        Выполняется обновление только разрешенных полей (например, is_booked, price_zone).
+        Выполняется обновление только разрешенных полей (например, is_booked, seat_class).
         """
         self.logger.debug(f"Trying to update seat: {seat_id}")
         try:
             seat = self.get_seat_by_id(seat_id)
-            
+
             # Обновляем только разрешенные поля
-            allowed_fields = ['price_zone']
+            allowed_fields = ["seat_class"]
             updated_fields = []
             for field in allowed_fields:
                 if field in data:
                     setattr(seat, field, data[field])
                     updated_fields.append(field)
-            
+
             if updated_fields:
                 seat.save(update_fields=updated_fields)
-                self.logger.info(f"Seat with id {seat_id} successfully updated: {', '.join(updated_fields)}")
+                self.logger.info(
+                    f"Seat with id {seat_id} successfully updated: {', '.join(updated_fields)}"
+                )
             return seat
         except Exception as e:
             self.logger.error(f"Error when update seat {seat_id}: {e}")

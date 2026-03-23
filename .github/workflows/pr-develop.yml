@@ -6,45 +6,60 @@ on:
       - develop
 
 jobs:
-  build-and-test:
-    name: Build and Test
+  build:
+    name: Build Docker Services
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v3
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v2
 
-      - name: Prepare environment variables
-        run: |
-          if [ -f .env.example ]; then
-            cp .env.example .env
-          else
-            touch .env
-          fi
+      - name: Cache Docker layers
+        uses: actions/cache@v3
+        with:
+          path: /tmp/.buildx-cache
+          key: ${{ runner.os }}-buildx-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-buildx-
 
-      - name: Build and start containers
-        run: docker compose -f docker-compose.yml up -d --build
+      - name: Build Docker Compose services
+        run: docker compose build
 
-      - name: Wait for database to initialize
-        run: |
-          echo "Waiting for PostgreSQL to start..."
-          for i in {1..30}; do
-            if docker compose exec -T db pg_isready -U busser_killer; then
-              echo "PostgreSQL is ready!"
-              break
-            fi
-            sleep 2
-          done
-          sleep 5
+  test:
+    name: Run Tests
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Cache Docker layers
+        uses: actions/cache@v3
+        with:
+          path: /tmp/.buildx-cache
+          key: ${{ runner.os }}-buildx-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-buildx-
+
+      - name: Start services
+        run: docker compose up -d
+
+      - name: Wait for services to start
+        run: sleep 10
+
+      - name: Create migrations
+        run: docker compose exec -T web python src/manage.py makemigrations
+
+      - name: Run migrations
+        run: docker compose exec -T web python src/manage.py migrate
 
       - name: Run tests
-        # Используем -T для запуска без интерактивного TTY (чтобы CI не падал)
-        # Имя сервиса зависит от твоего docker-compose.yml, обычно это web или api
         run: docker compose exec -T web python src/manage.py test
 
-      - name: Stop containers
+      - name: Stop services
         if: always()
-        run: docker compose down -v
+        run: docker compose down

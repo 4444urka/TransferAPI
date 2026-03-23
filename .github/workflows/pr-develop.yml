@@ -1,0 +1,41 @@
+name: PR to Develop
+
+on:
+  pull_request:
+    branches:
+      - develop
+
+jobs:
+  build-and-test:
+    name: Build and Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Prepare environment variables
+        run: |
+          if [ -f .env.example ]; then
+            cp .env.example .env
+          else
+            touch .env
+          fi
+
+      - name: Build and start containers
+        run: docker compose -f docker-compose.yml up -d --build
+
+      - name: Wait for database to initialize
+        run: sleep 15
+
+      - name: Run tests
+        # Используем -T для запуска без интерактивного TTY (чтобы CI не падал)
+        # Имя сервиса зависит от твоего docker-compose.yml, обычно это web или api
+        run: docker compose exec -T web python src/manage.py test
+
+      - name: Stop containers
+        if: always()
+        run: docker compose down -v
